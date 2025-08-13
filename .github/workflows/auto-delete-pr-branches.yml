@@ -1,0 +1,38 @@
+# .github/workflows/auto-delete-pr-branches.yml
+name: auto-delete-pr-branches
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: write
+jobs:
+  delete:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete head branch when PR is merged (skip main branches)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowlist = new Set(['main','staging','dev']);
+            const headRef = context.payload.pull_request.head.ref;
+            const headRepo = context.payload.pull_request.head.repo.full_name;
+            const baseRepo = context.payload.pull_request.base.repo.full_name;
+            if (headRepo !== baseRepo) {
+              core.info(`PR from fork (${headRepo}) — nothing to delete here.`);
+              return;
+            }
+            if (allowlist.has(headRef)) {
+              core.info(`'${headRef}' is in allowlist; not deleting.`);
+              return;
+            }
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${headRef}`
+              });
+              core.notice(`Deleted branch '${headRef}'.`);
+            } catch (e) {
+              core.warning(`Could not delete heads/${headRef}: ${e.message}`);
+            }

@@ -1,0 +1,46 @@
+# .github/workflows/nightly-prune-merged-branches.yml
+name: nightly-prune-merged-branches
+on:
+  schedule:
+    - cron: "17 3 * * *"   # daily 03:17 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune merged non-main branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowlist = new Set(['main','staging','dev']);
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get last 200 merged PRs
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'closed', per_page: 100
+            });
+            const merged = prs.filter(pr => pr.merged_at);
+
+            for (const pr of merged) {
+              const headRef = pr.head.ref;
+              const headRepo = pr.head.repo && pr.head.repo.full_name;
+              if (!headRepo || headRepo !== `${owner}/${repo}`) continue;
+              if (allowlist.has(headRef)) continue;
+
+              // Check branch existence
+              try {
+                await github.rest.repos.getBranch({ owner, repo, branch: headRef });
+              } catch {
+                continue; // already gone
+              }
+
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${headRef}` });
+                core.notice(`Deleted '${headRef}' from merged PR #${pr.number}`);
+              } catch (e) {
+                core.warning(`Could not delete '${headRef}' (PR #${pr.number}): ${e.message}`);
+              }
+            }
