@@ -1,0 +1,31 @@
+# .github/ISSUE_TEMPLATE/feature_request.yml
+name: Feature request
+description: Propose a new capability
+title: "feat: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      placeholder: I want to scaffold X…
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: Add a detector that runs ...
+  - type: textarea
+    id: alt
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: CLI flag
+        - label: Detector
+        - label: Parser
+        - label: Templates
+        - label: Docs

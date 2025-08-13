@@ -1,0 +1,11 @@
+# .github/labels.yml  (optional; use with a label-sync action)
+- name: bug
+  color: d73a4a
+- name: enhancement
+  color: a2eeef
+- name: chore
+  color: cfd3d7
+- name: question
+  color: d876e3
+- name: release-candidate
+  color: 5319e7

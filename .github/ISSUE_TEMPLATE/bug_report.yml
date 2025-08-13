@@ -1,0 +1,37 @@
+# .github/ISSUE_TEMPLATE/bug_report.yml
+name: Bug report
+description: Something isn’t working
+title: "bug: "
+labels: ["bug"]
+assignees: []
+body:
+  - type: textarea
+    id: desc
+    attributes:
+      label: What happened?
+      description: Include steps to reproduce
+      placeholder: When I run forge-tree ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: e.g. 0.1.8
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [Windows, macOS, Linux]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: Searched existing issues
+        - label: Reproduces on latest version

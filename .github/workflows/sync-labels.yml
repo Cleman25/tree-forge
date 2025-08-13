@@ -1,0 +1,15 @@
+# .github/workflows/sync-labels.yml (optional if you use labels.yml)
+name: sync-labels
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          yaml-file: .github/labels.yml
+          dry-run: false

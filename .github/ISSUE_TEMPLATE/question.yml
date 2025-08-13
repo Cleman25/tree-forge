@@ -1,0 +1,16 @@
+# .github/ISSUE_TEMPLATE/question.yml
+name: Question
+description: Ask for help or clarification
+title: "docs: "
+labels: ["question"]
+assignees: []
+body:
+  - type: textarea
+    id: q
+    attributes:
+      label: Your question
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: e.g. 0.1.8

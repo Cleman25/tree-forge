@@ -1,0 +1,6 @@
+# .github/ISSUE_TEMPLATE/config.yml
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/Cleman25/tree-forge/security/advisories
+    about: Please do not disclose security issues publicly; use GitHub Advisories.

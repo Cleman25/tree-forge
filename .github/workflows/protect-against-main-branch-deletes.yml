@@ -1,0 +1,135 @@
+name: protect-against-main-branch-deletes
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Attempt to fix protections if missing (requires ADMIN_TOKEN)"
+        required: false
+        default: "false"
+  schedule:
+    - cron: "0 4 * * *"   # daily 04:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      APPLY: ${{ github.event.inputs.apply }}
+    steps:
+      - uses: actions/github-script@v7
+        id: audit
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const branches = ['main','staging','dev'];
+            const token = process.env.ADMIN_TOKEN || process.env.GITHUB_TOKEN;
+            const octokit = github.getOctokit(token);
+
+            const wants = {
+              // Required protections (tighten to taste)
+              enforce_admins: true,
+              required_pull_request_reviews: true,
+              required_status_checks: true,
+              allow_force_pushes: false,
+              allow_deletions: false,
+            };
+
+            const results = [];
+            for (const branch of branches) {
+              try {
+                const { data } = await octokit.request('GET /repos/{owner}/{repo}/branches/{branch}/protection', {
+                  owner, repo, branch
+                });
+
+                const has = {
+                  enforce_admins: !!data.enforce_admins?.enabled,
+                  required_pull_request_reviews: !!data.required_pull_request_reviews,
+                  required_status_checks: !!data.required_status_checks,
+                  allow_force_pushes: !!data.allow_force_pushes?.enabled,
+                  allow_deletions: !!data.allow_deletions?.enabled,
+                };
+
+                const problems = [];
+                if (!has.enforce_admins && wants.enforce_admins) problems.push('enforce_admins');
+                if (!has.required_pull_request_reviews && wants.required_pull_request_reviews) problems.push('required_pull_request_reviews');
+                if (!has.required_status_checks && wants.required_status_checks) problems.push('required_status_checks');
+                if (has.allow_force_pushes !== wants.allow_force_pushes) problems.push('allow_force_pushes');
+                if (has.allow_deletions !== wants.allow_deletions) problems.push('allow_deletions');
+
+                results.push({ branch, ok: problems.length === 0, problems, has });
+              } catch (e) {
+                results.push({ branch, ok: false, problems: ['no_protection_or_no_access'], error: String(e) });
+              }
+            }
+
+            core.startGroup('Branch protection audit');
+            for (const r of results) {
+              core.info(`${r.branch}: ${r.ok ? 'OK' : 'MISSING/WRONG → ' + r.problems.join(', ')}`);
+            }
+            core.endGroup();
+
+            core.setOutput('results', JSON.stringify(results));
+            const anyBad = results.some(r => !r.ok);
+            if (anyBad && process.env.APPLY !== 'true') {
+              core.setFailed('Branch protections missing or incorrect. Set inputs.apply=true and provide ADMIN_TOKEN to auto-fix, or configure protections in repo settings.');
+            }
+          result-encoding: string
+
+  fix:
+    needs: check
+    if: failure() && github.event.inputs.apply == 'true'
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            if (!process.env.ADMIN_TOKEN) {
+              core.setFailed('ADMIN_TOKEN secret is required to modify branch protection.');
+              return;
+            }
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const branches = ['main','staging','dev'];
+            const octokit = github.getOctokit(process.env.ADMIN_TOKEN);
+
+            // Minimal required status checks list — adjust to your repo’s checks
+            const contexts = [
+              'ci (ubuntu-latest, 18)',
+              'ci (ubuntu-latest, 20)',
+              'ci (ubuntu-latest, 22)',
+              'ci (windows-latest, 18)',
+              'ci (windows-latest, 20)',
+              'ci (windows-latest, 22)',
+              'ci (macos-latest, 18)',
+              'ci (macos-latest, 20)',
+              'ci (macos-latest, 22)'
+            ];
+
+            for (const branch of branches) {
+              try {
+                await octokit.request('PUT /repos/{owner}/{repo}/branches/{branch}/protection', {
+                  owner, repo, branch,
+                  required_status_checks: {
+                    strict: true,
+                    contexts
+                  },
+                  enforce_admins: true,
+                  required_pull_request_reviews: {
+                    required_approving_review_count: branch === 'main' ? 2 : 1,
+                    require_code_owner_reviews: true,
+                  },
+                  restrictions: null,
+                  allow_force_pushes: false,
+                  allow_deletions: false,
+                });
+                core.notice(`Applied protections on ${branch}`);
+              } catch (e) {
+                core.warning(`Failed to apply protections on ${branch}: ${e.message}`);
+              }
+            }

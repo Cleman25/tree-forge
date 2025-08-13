@@ -1,0 +1,21 @@
+# .github/ISSUE_TEMPLATE/chore.yml
+name: Chore
+description: Build, CI, refactors, housekeeping
+title: "chore: "
+labels: ["chore"]
+assignees: []
+body:
+  - type: textarea
+    id: work
+    attributes:
+      label: Work description
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Areas
+      options:
+        - label: CI
+        - label: Release
+        - label: Docs
+        - label: Infra
+        - label: Tests
