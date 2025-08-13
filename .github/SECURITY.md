@@ -1,5 +1,3 @@
-# SECURITY.md
-
 ## Reporting a Vulnerability
 
 Please report security issues privately via GitHub Security Advisories:

@@ -1,5 +1,3 @@
-# CONTRIBUTING.md
-
 ## Flow
 
 - feature/* → PR → dev → PR → staging → PR → main
