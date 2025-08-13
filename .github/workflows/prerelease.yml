@@ -3,6 +3,7 @@ name: prerelease
 on:
   push:
     branches: [staging]
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -56,9 +57,10 @@ jobs:
           git push --force origin "v${ver}"
 
       - name: Publish RC to npm (tag: next)
+        shell: bash
+        run: npm publish --access public --tag next
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --tag next
 
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
