@@ -43,7 +43,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/index.js',0o755)\"",
     "dev": "tsc -w -p tsconfig.json",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm test",
+    "release:tag": "node -e \"const v=require('./package.json').version;console.log('v'+v)\"",
+    "release:patch": "npm version patch && git push && git push --tags",
+    "release:minor": "npm version minor && git push && git push --tags",
+    "release:major": "npm version major && git push && git push --tags",
     "start": "node dist/index.js",
     "lint": "node -e \"process.exit(0)\"",
     "test": "npm run build && vitest run",
@@ -56,10 +60,10 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/node": "^20.14.12",
+    "@types/node": "^20.19.10",
     "@types/prompts": "^2.4.9",
     "@types/yargs": "^17.0.33",
-    "typescript": "^5.5.4",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "publishConfig": {
