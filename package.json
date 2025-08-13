@@ -48,6 +48,7 @@
     "release:patch": "npm version patch && git push && git push --tags",
     "release:minor": "npm version minor && git push && git push --tags",
     "release:major": "npm version major && git push && git push --tags",
+    "release:local": "npx release-please release-pr --release-type node --repo-url $npm_config_repo || true"
     "start": "node dist/index.js",
     "lint": "node -e \"process.exit(0)\"",
     "test": "npm run build && vitest run",
