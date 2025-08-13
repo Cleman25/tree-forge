@@ -57,7 +57,7 @@ jobs:
           git tag "v${ver}" -f
           git push --force origin "v${ver}"
 
-      - name: Publish RC to npm (tag: next)
+      - name: Publish RC to npm
         uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
