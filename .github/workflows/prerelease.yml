@@ -58,9 +58,12 @@ jobs:
           git push --force origin "v${ver}"
 
       - name: Publish RC to npm (tag: next)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --tag next
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          access: public
+          tag: next
+          check-version: false
 
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
