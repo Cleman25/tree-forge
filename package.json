@@ -1,0 +1,68 @@
+{
+  "name": "forge-tree",
+  "version": "0.1.1",
+  "description": "Interactive CLI to scaffold projects from an ASCII tree. Parses hierarchies, generates files/folders, runs smart detectors (Next.js, Firebase, npm init), and emits dotfiles/formatters.",
+  "keywords": [
+    "scaffold",
+    "cli",
+    "generator",
+    "ascii",
+    "tree",
+    "directory",
+    "nextjs",
+    "firebase",
+    "monorepo",
+    "turbo"
+  ],
+  "license": "MIT",
+  "author": "Your Name",
+  "homepage": "https://github.com/Cleman25/forge-tree#readme",
+  "bugs": {
+    "url": "https://github.com/Cleman25/forge-tree/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cleman25/forge-tree.git"
+  },
+  "type": "module",
+  "bin": {
+    "forge-tree": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/index.js',0o755)\"",
+    "dev": "tsc -w -p tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/index.js",
+    "lint": "node -e \"process.exit(0)\"",
+    "test": "npm run build && vitest run",
+    "test:watch": "npm run build && vitest"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "execa": "^9.4.0",
+    "prompts": "^2.4.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "@types/prompts": "^2.4.9",
+    "@types/yargs": "^17.0.33",
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
