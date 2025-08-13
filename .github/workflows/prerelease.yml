@@ -1,1 +1,71 @@
-<PASTE THE YAML ABOVE HERE EXACTLY>
+# .github/workflows/prerelease.yml
+name: prerelease
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prerelease-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rc-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Bump prerelease version (rc)
+        id: bump
+        run: |
+          set -euo pipefail
+          npm version prerelease --preid=rc --no-git-tag-version
+          ver="$(node -p "require('./package.json').version")"
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json || true
+          git commit -m "chore(release): prerelease $(git rev-parse --short HEAD) → v$(node -p "require('./package.json').version") [skip ci]" || echo "nothing to commit"
+          git push
+
+      - name: Create and push tag
+        run: |
+          set -euo pipefail
+          ver="$(node -p "require('./package.json').version")"
+          git tag "v${ver}" -f
+          git push --force origin "v${ver}"
+
+      - name: Publish RC to npm (tag: next)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --tag next
+
+      - name: Create GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.bump.outputs.version }}"
+          name: "v${{ steps.bump.outputs.version }}"
+          prerelease: true
+          generate_release_notes: true
