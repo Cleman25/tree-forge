@@ -1,0 +1,25 @@
+# .github/workflows/promo-dev-to-staging.yml
+name: promote-dev-to-staging
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: PR title
+        required: false
+        default: "Promote dev → staging"
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open PR dev → staging
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: "dev"
+          destination_branch: "staging"
+          pr_title: "${{ github.event.inputs.title }}"
+          pr_body: "Automated promotion from dev to staging"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
