@@ -1,7 +1,9 @@
-src
+src/
 tsconfig.json
-.vscode
+vitest.config.ts
+.vscode/
 coverage
-*.map
+**/*.map
+dist/__tests__/
 *.log
 .DS_Store
