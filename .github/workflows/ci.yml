@@ -1,23 +1,184 @@
-# .github/workflows/ci.yml
-name: ci
+name: CI
+
 on:
-  pull_request:
-    branches: [dev, staging, main]
   push:
-    branches: [dev]
+    branches: [ main, dev, staging ]
+  pull_request:
+    branches: [ main, dev, staging ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly security scans
+
 jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
   test:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [18, 20, 22]
-    runs-on: ${{ matrix.os }}
+        node-version: [18.x, 20.x]
+        os: [ubuntu-latest, windows-latest]
+      fail-fast: false  # Continue with other jobs if one fails
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    # Cache node_modules
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      id: npm-cache
+      with:
+        path: |
+          **/node_modules
+          ~/.npm
+          .next/cache
+        key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-
+    
+    - name: Clean install dependencies
+      if: steps.npm-cache.outputs.cache-hit != 'true'
+      run: npm ci
+      
+    # Cache build output
+    - name: Cache build
+      uses: actions/cache@v3
+      with:
+        path: dist
+        key: ${{ runner.os }}-build-${{ github.sha }}
+    
+    - name: Run linting
+      run: npm run ci:lint
+      
+    - name: Run tests in parallel
+      run: npm run ci:test
+      env:
+        CI: true
+        JEST_WORKERS: 2
+    
+    - name: Build
+      run: npm run ci:build
+      
+    - name: Analyze bundle size
+      uses: andresz1/size-limit-action@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Security audit
+      run: |
+        npm run ci:audit
+        npm audit fix --force --production
+
+  docs:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Generate documentation
+      run: npx typedoc --out docs src/
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+
+  version:
+    needs: [test, code-quality]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/dev')
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    
+    - name: Generate version
+      id: version
+      uses: google-github-actions/release-please-action@v3
+      with:
+        release-type: node
+        package-name: forge-tree
+        changelog-types: |
+          [
+            {"type":"feat","section":"Features","hidden":false},
+            {"type":"fix","section":"Bug Fixes","hidden":false},
+            {"type":"perf","section":"Performance Improvements","hidden":false},
+            {"type":"revert","section":"Reverts","hidden":false},
+            {"type":"docs","section":"Documentation","hidden":false},
+            {"type":"style","section":"Styles","hidden":false},
+            {"type":"chore","section":"Miscellaneous","hidden":false},
+            {"type":"refactor","section":"Code Refactoring","hidden":false},
+            {"type":"test","section":"Tests","hidden":false},
+            {"type":"build","section":"Build System","hidden":false},
+            {"type":"ci","section":"Continuous Integration","hidden":false}
+          ]
+
+  publish:
+    needs: version
+    runs-on: ubuntu-latest
+    if: needs.version.outputs.new_version != ''
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Set npm tag based on branch
+      id: npm-tag
+      run: |
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "NPM_TAG=latest" >> $GITHUB_ENV
+        elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+          echo "NPM_TAG=beta" >> $GITHUB_ENV
+        else
+          echo "NPM_TAG=alpha" >> $GITHUB_ENV
+        fi
+    
+    - name: Publish to npm
+      if: success()
+      run: npm publish --tag ${{ env.NPM_TAG }}
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -19,5 +19,5 @@ export declare function pmArgs(pm: NonNullable<ForgeConfig["packageManager"]>): 
     addD: (pkgs: string[], flags?: string[]) => readonly ["npm", readonly ["install", "-D", ...string[]]];
     install: readonly ["npm", readonly ["install"]];
 };
-export declare function run(action: PlanAction): Promise<void>;
-export declare function applyPlan(plan: PlanAction[], dryRun: boolean): Promise<void>;
+export declare function run(action: PlanAction, logger?: any): Promise<void>;
+export declare function applyPlan(plan: PlanAction[], dryRun: boolean, logger?: any): Promise<void>;
