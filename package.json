@@ -1,6 +1,6 @@
 {
   "name": "forge-tree",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "A powerful tool to scaffold project structures from ASCII tree diagrams. Supports smart detection of project types, custom templates, and extensive configuration options.",
   "keywords": [
     "scaffold",
