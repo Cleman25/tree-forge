@@ -1,3 +1,4 @@
+import { Logger } from "./logger.js";
 export declare function setupGit(opts: {
     repoPath: string;
     branch?: string;
@@ -5,4 +6,5 @@ export declare function setupGit(opts: {
     github?: string | boolean;
     private?: boolean;
     push?: boolean;
+    logger?: Logger;
 }): Promise<void>;
