@@ -35,15 +35,38 @@ export function parseTree(text, cfg) {
     return roots;
 }
 function splitDepth(line, unit, cfg) {
-    const guides = cfg.detectAsciiGuides ? /[│├└─]/g : null;
+    const style = cfg.treeStyle || {
+        vertical: "│",
+        horizontal: "─",
+        corner: "└",
+        branch: "├",
+        indent: unit
+    };
+    // Create a regex pattern that matches any of the tree style characters
+    const guides = cfg.detectAsciiGuides
+        ? new RegExp(`[${style.vertical}${style.branch}${style.corner}${style.horizontal}]`, "g")
+        : null;
     let trimmed = line;
-    if (guides)
+    // Handle different tree styles
+    if (guides) {
         trimmed = trimmed.replace(guides, " ");
+    }
+    else {
+        // Handle simple dash/pipe style
+        trimmed = trimmed
+            .replace(/[-|]/g, " ") // Replace basic tree chars with spaces
+            .replace(/[+`]/g, " "); // Handle alternative corner chars
+    }
     trimmed = trimmed.replace(/#+\s.*$/, (m) => " " + m); // keep hint
+    // Handle special case where line starts with tree characters
+    const treeStart = line.match(/^[-+|`]/) ? 1 : 0;
     const m = trimmed.match(/^(\s*)(.*)$/);
-    const spaces = m ? m[1].length : 0;
+    const spaces = m ? m[1].length + treeStart : 0;
     const rest = m ? m[2] : line;
-    const depth = Math.floor(spaces / unit.length);
+    // Calculate depth based on either spaces or tree characters
+    const depth = guides
+        ? Math.floor(spaces / unit.length)
+        : (line.match(/[-|]/g) || []).length;
     const { name, hint } = (() => {
         const parts = rest.split(/\s+#\s(.*)/);
         if (parts.length > 1)

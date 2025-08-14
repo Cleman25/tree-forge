@@ -24,15 +24,18 @@ export const NextAppDetector: Detector = {
       return { actions: [], description: "Skipped Next.js setup (existing files found)" };
     }
 
-    if (existingFiles.length > 0 && !cfg.overwriteMode) {
-      throw new Error(
-        `Cannot create Next.js app in "${n.path}" - directory contains existing files:\n` +
-        existingFiles.map(f => `  - ${f}`).join('\n') + '\n\n' +
-        'Options:\n' +
-        '1. Remove existing files\n' +
-        '2. Use --overwriteMode=force to overwrite\n' +
-        '3. Use --skipExisting to skip directories with existing files'
-      );
+    // Handle existing files with user confirmation or config
+    if (existingFiles.length > 0 && !cfg.yes) {
+      const userConfirmed = await askPerNode(n, "create-next-app");
+      if (!userConfirmed) {
+        console.log(`\nSkipping Next.js setup in "${n.path}"\n`);
+        return { actions: [], description: "User skipped Next.js setup" };
+      }
+    }
+    
+    // If we get here, either user confirmed or --yes was set
+    if (existingFiles.length > 0) {
+      console.log(`\n⚠️  Proceeding to overwrite files in "${n.path}"\n`);
     }
 
     actions.push({
@@ -83,15 +86,18 @@ export const FirebaseDetector: Detector = {
       return { actions: [], description: "Skipped Firebase setup (existing files found)" };
     }
 
-    if (existingFiles.length > 0 && !cfg.overwriteMode) {
-      throw new Error(
-        `Cannot initialize Firebase in "${n.path}" - directory contains existing files:\n` +
-        existingFiles.map(f => `  - ${f}`).join('\n') + '\n\n' +
-        'Options:\n' +
-        '1. Remove existing files\n' +
-        '2. Use --overwriteMode=force to overwrite\n' +
-        '3. Use --skipExisting to skip directories with existing files'
-      );
+    // Handle existing files with user confirmation or config
+    if (existingFiles.length > 0 && !cfg.yes) {
+      const userConfirmed = await askPerNode(n, "firebase-init");
+      if (!userConfirmed) {
+        console.log(`\nSkipping Firebase setup in "${n.path}"\n`);
+        return { actions: [], description: "User skipped Firebase setup" };
+      }
+    }
+    
+    // If we get here, either user confirmed or --yes was set
+    if (existingFiles.length > 0) {
+      console.log(`\n⚠️  Proceeding to overwrite files in "${n.path}"\n`);
     }
 
     // Check if firebase-tools is installed
@@ -153,14 +159,18 @@ export const PkgDetector: Detector = {
       return { actions: [], description: "Skipped package.json init (file exists)" };
     }
 
-    if (existingFiles.length > 0 && !cfg.overwriteMode) {
-      throw new Error(
-        `Cannot initialize package.json in "${n.path}" - file already exists\n\n` +
-        'Options:\n' +
-        '1. Remove existing package.json\n' +
-        '2. Use --overwriteMode=force to overwrite\n' +
-        '3. Use --skipExisting to skip directories with existing package.json'
-      );
+    // Handle existing files with user confirmation or config
+    if (existingFiles.length > 0 && !cfg.yes) {
+      const userConfirmed = await askPerNode(n, "npm-init");
+      if (!userConfirmed) {
+        console.log(`\nSkipping package.json initialization in "${n.path}"\n`);
+        return { actions: [], description: "User skipped package.json init" };
+      }
+    }
+    
+    // If we get here, either user confirmed or --yes was set
+    if (existingFiles.length > 0) {
+      console.log(`\n⚠️  Proceeding to overwrite files in "${n.path}"\n`);
     }
 
     // Check if package manager is installed

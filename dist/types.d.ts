@@ -1,3 +1,10 @@
+export type TreeStyle = {
+    indent: string;
+    vertical: string;
+    horizontal: string;
+    corner: string;
+    branch: string;
+};
 export type ForgeConfig = {
     targetDir: string;
     treeText?: string;
@@ -10,6 +17,15 @@ export type ForgeConfig = {
     runDetectors: boolean;
     generateDotfiles: boolean;
     cwd: string;
+    treeStyle?: TreeStyle;
+    overwriteMode?: "ask" | "skip" | "force";
+    skipExisting?: boolean;
+    preserveGitIgnore?: boolean;
+    preservePackageJson?: boolean;
+    preserveConfig?: boolean;
+    logLevel?: "silent" | "error" | "warn" | "info" | "debug";
+    templateDir?: string;
+    variables?: Record<string, string>;
 };
 export type NodeKind = "dir" | "file";
 export type TreeNode = {
