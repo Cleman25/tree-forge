@@ -138,7 +138,8 @@ export function validateTree(text: string, roots: TreeNode[], cfg?: ForgeConfig)
   const errors: ValidationError[] = [];
   
   // Validate comments first
-  errors.push(...validateComments(text));
+  const commentErrors = validateComments(text);
+  errors.push(...commentErrors);
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
 
@@ -152,15 +153,17 @@ export function validateTree(text: string, roots: TreeNode[], cfg?: ForgeConfig)
   }
 
   // Check for root node
-  if (lines[0].startsWith(' ') || lines[0].startsWith('│') || 
+  if (lines.length > 0 && (
+      lines[0].startsWith(' ') || lines[0].startsWith('│') || 
       lines[0].startsWith('├') || lines[0].startsWith('└') ||
-      lines[0].startsWith('-') || lines[0].startsWith('|')) {
+      lines[0].startsWith('-') || lines[0].startsWith('|'))) {
     errors.push({
       type: 'error',
       message: 'First line must be a root node without indentation.',
       line: 1,
       context: lines[0]
     });
+    return errors;
   }
 
   // Check for valid node names
@@ -219,6 +222,7 @@ export function validateTree(text: string, roots: TreeNode[], cfg?: ForgeConfig)
 
   // Check tree structure
   let lastDepth = 0;
+  let lastLine = '';
   lines.forEach((line, idx) => {
     const spaces = line.match(/^\s*/);
     const treeChars = line.match(/^[-│├└|+`]*/);
@@ -229,12 +233,46 @@ export function validateTree(text: string, roots: TreeNode[], cfg?: ForgeConfig)
     if (depth > lastDepth + 1) {
       errors.push({
         type: 'error',
-        message: 'Invalid indentation. Depth can only increase by 1.',
+        message: 'Indentation can only increase by 1 level at a time.',
         line: idx + 1,
-        context: line
+        context: `${lastLine}\n${line}`
       });
     }
+    
+    // Check for invalid depth decrease
+    if (depth < lastDepth - 1) {
+      errors.push({
+        type: 'error',
+        message: 'Indentation can only decrease by 1 level at a time.',
+        line: idx + 1,
+        context: `${lastLine}\n${line}`
+      });
+    }
+    
     lastDepth = depth;
+    lastLine = line;
+  });
+
+  // Check for indentation consistency
+  let prevDepth = 0;
+  let prevLine = '';
+  lines.forEach((line, idx) => {
+    const spaces = line.match(/^\s*/);
+    const treeChars = line.match(/^[-│├└|+`]*/);
+    const depth = (spaces ? spaces[0].length / 2 : 0) || 
+                 (treeChars ? treeChars[0].length : 0);
+    
+    // Check for invalid depth changes
+    if (depth > prevDepth + 1) {
+      errors.push({
+        type: 'error',
+        message: 'Indentation can only increase by 1 level at a time.',
+        line: idx + 1,
+        context: `${prevLine}\n${line}`
+      });
+    }
+    prevDepth = depth;
+    prevLine = line;
   });
 
   // Check parsed tree structure

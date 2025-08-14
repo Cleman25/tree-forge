@@ -100,13 +100,15 @@ export function parseTree(text: string, cfg: ForgeConfig): TreeNode[] {
     throw new Error(`Invalid tree structure:\n${errorMessages}`);
   }
 
-  // Update all paths to be under targetDir
-  const updatePaths = (node: TreeNode) => {
-    // Convert the relative path to be under targetDir
-    node.path = path.join(cfg.targetDir, node.path);
-    node.children.forEach(updatePaths);
-  };
-  roots.forEach(updatePaths);
+  // Update all paths to be under targetDir if needed
+  if (cfg.pathNormalization?.base === "root") {
+    const updatePaths = (node: TreeNode) => {
+      // Convert the relative path to be under targetDir
+      node.path = path.join(cfg.targetDir, node.path);
+      node.children.forEach(updatePaths);
+    };
+    roots.forEach(updatePaths);
+  }
 
   return roots;
 }

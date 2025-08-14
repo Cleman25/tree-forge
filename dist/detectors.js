@@ -11,7 +11,7 @@ export const NextAppDetector = {
         if (!(n.kind === "dir" && /web|next/i.test(n.name)))
             return false;
         // Only match at root unless nested init is allowed
-        return cfg.allowNestedInit || n.path === n.name;
+        return cfg.allowNestedInit || n.path === `${cfg.targetDir}/${n.name}`;
     },
     prompt: async (n) => askPerNode(n, "create-next-app"),
     generate: async (n, cfg) => {
@@ -101,7 +101,7 @@ export const FirebaseDetector = {
         if (!(n.kind === "dir" && /^(web|firebase|dataconnect)$/i.test(n.name)))
             return false;
         // Only match at root unless nested init is allowed
-        return cfg.allowNestedInit || n.path === n.name;
+        return cfg.allowNestedInit || n.path === `${cfg.targetDir}/${n.name}`;
     },
     prompt: async (n) => askPerNode(n, "firebase-init"),
     generate: async (n, cfg) => {
@@ -213,7 +213,7 @@ export const PkgDetector = {
         if (!(n.kind === "dir" && /package\.json$/i.test(n.children.map((c) => c.name).join(",")) === false))
             return false;
         // Only match at root unless nested init is allowed
-        return cfg.allowNestedInit || n.path === n.name;
+        return cfg.allowNestedInit || n.path === `${cfg.targetDir}/${n.name}`;
     },
     prompt: async (n) => askPerNode(n, "npm-init"),
     generate: async (n, cfg) => {
@@ -346,7 +346,7 @@ export const CustomDetector = (init) => ({
                 return false;
         }
         // Default to root-only unless allowNestedInit
-        return cfg.allowNestedInit || n.path === n.name;
+        return cfg.allowNestedInit || n.path === `${cfg.targetDir}/${n.name}`;
     },
     prompt: async (n) => askPerNode(n, init.id),
     generate: async (n, cfg) => {
@@ -378,7 +378,7 @@ const createGenericDetector = (id, patterns, structure) => ({
         if (!(n.kind === "dir" && patterns.some(p => new RegExp(p, "i").test(n.name)))) {
             return false;
         }
-        return cfg.allowNestedInit || n.path === n.name;
+        return cfg.allowNestedInit || n.path === `${cfg.targetDir}/${n.name}`;
     },
     prompt: async (n) => askPerNode(n, id),
     generate: async (n, cfg) => {

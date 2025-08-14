@@ -1,203 +1,0 @@
-[1mdiff --git a/.gitignore b/.gitignore[m
-[1mindex 0b8eff7..b67a991 100644[m
-[1m--- a/.gitignore[m
-[1m+++ b/.gitignore[m
-[36m@@ -1,2 +1,46 @@[m
-[32m+[m[32m# Dependencies[m
- **/node_modules[m
-[31m-dist/__tests__[m
-[32m+[m[32myarn.lock[m
-[32m+[m[32mpackage-lock.json[m
-[32m+[m[32mpnpm-lock.yaml[m
-[32m+[m
-[32m+[m[32m# Build output[m
-[32m+[m[32mdist/[m
-[32m+[m[32m*.tsbuildinfo[m
-[32m+[m[32m*.js.map[m
-[32m+[m
-[32m+[m[32m# Test files[m
-[32m+[m[32mcoverage/[m
-[32m+[m[32m.nyc_output/[m
-[32m+[m[32m*.test.js[m
-[32m+[m[32m*.spec.js[m
-[32m+[m
-[32m+[m[32m# IDE and Editor files[m
-[32m+[m[32m.idea/[m
-[32m+[m[32m.vscode/[m
-[32m+[m[32m*.swp[m
-[32m+[m[32m*.swo[m
-[32m+[m[32m.DS_Store[m
-[32m+[m[32mThumbs.db[m
-[32m+[m
-[32m+[m[32m# Logs and temp files[m
-[32m+[m[32m*.log[m
-[32m+[m[32mforge-tree.log[m
-[32m+[m[32mforge-tree.stats.json[m
-[32m+[m[32m.forge-tree/[m
-[32m+[m[32m.forge-tree-viewer/[m
-[32m+[m[32m.forge-tree-cache.json[m
-[32m+[m[32m**/*.tree[m
-[32m+[m
-[32m+[m[32m# Development files[m
-[32m+[m[32m*.md.new[m
-[32m+[m[32m*.tmp[m
-[32m+[m[32m*.temp[m
-[32m+[m[32m.env[m
-[32m+[m[32m.env.*[m
-[32m+[m
-[32m+[m[32m# Debug files[m
-[32m+[m[32mdebug.log[m
-[32m+[m[32mnpm-debug.log*[m
-[32m+[m[32myarn-debug.log*[m
-[32m+[m[32myarn-error.log*[m
-\ No newline at end of file[m
-[1mdiff --git a/.npmignore b/.npmignore[m
-[1mindex 87b36dd..fbd102f 100644[m
-[1m--- a/.npmignore[m
-[1m+++ b/.npmignore[m
-[36m@@ -1,9 +1,68 @@[m
-[31m-src/[m
-[31m-tsconfig.json[m
-[31m-vitest.config.ts[m
-[31m-.vscode/[m
-[31m-coverage[m
-[31m-**/*.map[m
-[31m-dist/__tests__/[m
-[31m-*.log[m
-[31m-.DS_Store[m
-[32m+[m[32m# Source files (we publish compiled)[m[41m[m
-[32m+[m[32msrc/[m[41m[m
-[32m+[m[32mtsconfig.json[m[41m[m
-[32m+[m[32mvitest.config.ts[m[41m[m
-[32m+[m[32m*.ts[m[41m[m
-[32m+[m[32m!*.d.ts[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Test files[m[41m[m
-[32m+[m[32m__tests__/[m[41m[m
-[32m+[m[32mcoverage/[m[41m[m
-[32m+[m[32m.nyc_output/[m[41m[m
-[32m+[m[32m*.test.js[m[41m[m
-[32m+[m[32m*.spec.js[m[41m[m
-[32m+[m[32m*.test.d.ts[m[41m[m
-[32m+[m[32m*.spec.d.ts[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Development configuration[m[41m[m
-[32m+[m[32m.github/[m[41m[m
-[32m+[m[32m.vscode/[m[41m[m
-[32m+[m[32m.idea/[m[41m[m
-[32m+[m[32m.editorconfig[m[41m[m
-[32m+[m[32m.eslintrc*[m[41m[m
-[32m+[m[32m.prettierrc*[m[41m[m
-[32m+[m[32m.gitignore[m[41m[m
-[32m+[m[32m.gitattributes[m[41m[m
-[32m+[m[32m.travis.yml[m[41m[m
-[32m+[m[32m.circleci/[m[41m[m
-[32m+[m[32m.husky/[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Documentation (except main README)[m[41m[m
-[32m+[m[32mdocs/[m[41m[m
-[32m+[m[32mCONTRIBUTING.md[m[41m[m
-[32m+[m[32mCHANGELOG.md[m[41m[m
-[32m+[m[32m*.md.new[m[41m[m
-[32m+[m[32m*.md[m[41m[m
-[32m+[m[32m!README.md[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Development files[m[41m[m
-[32m+[m[32m.env[m[41m[m
-[32m+[m[32m.env.*[m[41m[m
-[32m+[m[32m*.log[m[41m[m
-[32m+[m[32mdebug.log[m[41m[m
-[32m+[m[32mnpm-debug.log*[m[41m[m
-[32m+[m[32myarn-debug.log*[m[41m[m
-[32m+[m[32myarn-error.log*[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Cache and temp files[m[41m[m
-[32m+[m[32m.forge-tree/[m[41m[m
-[32m+[m[32m.forge-tree-viewer/[m[41m[m
-[32m+[m[32m.forge-tree-cache.json[m[41m[m
-[32m+[m[32m*.tmp[m[41m[m
-[32m+[m[32m*.temp[m[41m[m
-[32m+[m[32m.DS_Store[m[41m[m
-[32m+[m[32mThumbs.db[m[41m[m
-[32m+[m[32m**/*.tree[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Lock files (let users generate their own)[m[41m[m
-[32m+[m[32myarn.lock[m[41m[m
-[32m+[m[32mpackage-lock.json[m[41m[m
-[32m+[m[32mpnpm-lock.yaml[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Source maps[m[41m[m
-[32m+[m[32m*.map[m[41m[m
-[32m+[m[32m*.tsbuildinfo[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m# Examples and templates (copy to dist during build)[m[41m[m
-[32m+[m[32m!dist/templates/[m[41m[m
-[32m+[m[32msrc/templates/[m
-\ No newline at end of file[m
-[1mdiff --git a/FUNDS.ym b/FUNDS.ym[m
-[1mdeleted file mode 100644[m
-[1mindex e6fa99f..0000000[m
-[1m--- a/FUNDS.ym[m
-[1m+++ /dev/null[m
-[36m@@ -1,17 +0,0 @@[m
-[31m-# Funding Treeforge Development[m
-[31m-[m
-[31m-Your support helps maintain and improve Treeforge.  [m
-[31m-Any contribution, no matter the size, is greatly appreciated.[m
-[31m-[m
-[31m-## How to Contribute[m
-[31m-You can sponsor development directly via:[m
-[31m-[m
-[31m-- **GitHub Sponsors** ➡ [github.com/sponsors/Cleman25](https://github.com/sponsors/Cleman25)  [m
-[31m-- **PayPal** ➡ [paypal.me/clxmxnt25](https://paypal.me/clxmxnt25)[m
-[31m-[m
-[31m-## How Funds Are Used[m
-[31m-- Hosting & infrastructure costs[m
-[31m-- Development time & tooling[m
-[31m-- Documentation & community support[m
-[31m-[m
-[31m-Thank you for helping keep Treeforge growing![m
-[1mdiff --git a/README.md b/README.md[m
-[1mindex 192e79d..053c9ec 100644[m
-[1m--- a/README.md[m
-[1m+++ b/README.md[m
-[36m@@ -1,77 +1,691 @@[m
- # Forge Tree[m
- [m
-[31m-[![npm](https://img.shields.io/npm/v/forge-tree.svg)](https://www.npmjs.com/package/forge-tree)[m
-[31m-[![npm downloads](https://img.shields.io/npm/dm/forge-tree.svg)](https://www.npmjs.com/package/forge-tree)[m
-[31m-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)[m
-[32m+[m[32m[![npm version](https://badge.fury.io/js/forge-tree.svg)](https://badge.fury.io/js/forge-tree)[m[41m[m
-[32m+[m[32m[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)[m[41m[m
-[32m+[m[32m[![Node.js Version](https://img.shields.io/node/v/forge-tree.svg)](https://nodejs.org)[m[41m[m
- [m
-[31m-Interactive CLI to scaffold projects from an **ASCII directory tree**. It parses hierarchies, generates files/folders, creates dotfiles/formatters, and can smart-run tools like `create-next-app`, `firebase init`, or `npm init` where appropriate.[m
-[32m+[m[32mA powerful tool to scaffold project structures from ASCII tree diagrams. Supports smart detection of project types, custom templates, and extensive configuration options.[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m## Documentation[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### Getting Started[m[41m[m
-[32m+[m[32m- [Installation and Basic Usage](#installation)[m[41m[m
-[32m+[m[32m- [Quick Start Guide](#quick-start)[m[41m[m
-[32m+[m[32m- [Command Line Options](#command-line-options)[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### Core Concepts[m[41m[m
-[32m+[m[32m- [Tree File Format](#tree-file-format)[m[41m[m
-[32m+[m[32m- [Path Handling Guide](docs/path-handling.md)[m[41m[m
-[32m+[m[32m- [Validation Rules](docs/path-handling.md#validation-rules)[m[41m[m
-[32m+[m[32m- [Conflict Resolution](docs/path-handling.md#conflict-resolution)[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### Logging and Analysis[m[41m[m
-[32m+[m[32m- [Log Viewer Guide](docs/log-viewer.md)[m[41m[m
-[32m+[m[32m  - [Quick Start](docs/log-viewer.md#quick-start)[m[41m[m
-[32m+[m[32m  - [Features](docs/log-viewer.md#features)[m[41m[m
-[32m+[m[32m  - [File Formats](docs/log-viewer.md#file-formats)[m[41m[m
-[32m+[m[32m  - [Cache Management](docs/log-viewer.md#cache-management)[m[41m[m
-[32m+[m[32m  - [Keyboard Shortcuts](docs/log-viewer.md#keyboard-shortcuts)[m[41m[m
-[32m+[m[32m  - [Customization](docs/log-viewer.md#customization)[m[41m[m
-[32m+[m[32m  - [Troubleshooting](docs/log-viewer.md#troubleshooting)[m[41m[m
-[32m+[m[32m- [Browser Configuration](docs/browser-config.md)[m[41m[m
-[32m+[m[41m[m
-[32m+[m[32m### Example Configurations[m[41m[m
-[32m+[m[32m- [Monorepo Setup](docs/examples/monorepo.md)[m[41m[m
-[32m+[m[32m- [Next.js App

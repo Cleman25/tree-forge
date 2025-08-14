@@ -145,21 +145,29 @@ export class PathValidator {
     }
 
     // Check file extensions
-    if (this.rules.requireExtensions && !name.includes(".") && parts[parts.length - 1].includes(".")) {
-      errors.push(this.handleViolation("missingExtension", {
+    if (this.rules.requireExtensions && !name.includes(".")) {
+      errors.push({
+        type: "error",
+        code: "missingExtension",
+        message: "Files must have extensions",
         path: normalizedPath,
-        name
-      }));
+        details: { name }
+      });
     }
 
     if (this.rules.allowedExtensions.length > 0) {
       const ext = path.extname(name).toLowerCase();
       if (ext && !this.rules.allowedExtensions.includes(ext)) {
-        errors.push(this.handleViolation("invalidExtension", {
+        errors.push({
+          type: "error",
+          code: "invalidExtension",
+          message: `Invalid file extension (allowed: ${this.rules.allowedExtensions.join(", ")})`,
           path: normalizedPath,
-          extension: ext,
-          allowedExtensions: this.rules.allowedExtensions
-        }));
+          details: {
+            extension: ext,
+            allowedExtensions: this.rules.allowedExtensions
+          }
+        });
       }
     }
 
@@ -281,15 +289,28 @@ export class PathValidator {
     const baseName = path.substring(dir.length).replace(/\.[^.]+$/, "");
     const pattern = this.strategy.renamePattern.replace("{name}", baseName);
     
-    for (let i = this.strategy.counterStart; i < this.strategy.counterStart + this.strategy.maxAttempts; i++) {
-      const num = String(i).padStart(this.strategy.counterPadding, "0");
-      const newName = pattern.replace("{n}", num) + ext;
-      const newPath = dir + newName;
-      if (!this.seenPaths.has(newPath)) {
-        return newPath;
+    // Find the next available counter
+    let counter = this.strategy.counterStart;
+    const existingCounters = new Set<number>();
+    for (const existingPath of this.seenPaths) {
+      if (existingPath.startsWith(dir + baseName)) {
+        const match = existingPath.match(new RegExp(`${baseName}-(\\d+)${ext}$`));
+        if (match) {
+          const existingCounter = parseInt(match[1], 10);
+          existingCounters.add(existingCounter);
+        }
       }
     }
-    return path;
+    
+    // Find the first unused counter
+    while (existingCounters.has(counter)) {
+      counter++;
+    }
+    
+    // Use the next available counter
+    const num = String(counter).padStart(this.strategy.counterPadding, "0");
+    const newName = pattern.replace("{n}", num) + ext;
+    return dir + newName;
   }
 
   private renameTimestamp(path: string, ext: string): string {
@@ -301,12 +322,24 @@ export class PathValidator {
 
   private replaceInvalidChars(path: string, replacement: string): string {
     const regex = new RegExp(this.rules.allowedChars);
-    return path.split("").map(c => regex.test(c) ? c : replacement).join("");
+    return path.split("/").map(part => {
+      const [name, ext] = part.split(".");
+      if (ext) {
+        return name.split("").map(c => regex.test(c) ? c : replacement).join("") + "." + ext;
+      }
+      return part.split("").map(c => regex.test(c) ? c : replacement).join("");
+    }).join("/");
   }
 
   private stripInvalidChars(path: string): string {
     const regex = new RegExp(this.rules.allowedChars);
-    return path.split("").filter(c => regex.test(c)).join("");
+    return path.split("/").map(part => {
+      const [name, ext] = part.split(".");
+      if (ext) {
+        return name.split("").filter(c => regex.test(c)).join("") + "." + ext;
+      }
+      return part.split("").filter(c => regex.test(c)).join("");
+    }).join("/");
   }
 
   private encodePath(path: string): string {
@@ -434,7 +467,14 @@ export class PathValidator {
     // Trim whitespace
     if (this.rules.trimWhitespace) {
       normalized = normalized.split("/")
-        .map(part => part.trim())
+        .map(part => {
+          const [name, ext] = part.split(".");
+          if (ext) {
+            return name.trim().replace(/\s+/g, " ") + "." + ext;
+          }
+          return part.trim().replace(/\s+/g, " ");
+        })
+        .filter(part => part.length > 0)
         .join("/");
     }
 
@@ -462,32 +502,26 @@ export class PathNormalizer {
 
     let normalized = filePath;
 
-    // Handle path separators
-    switch (style) {
-      case "unix":
-        normalized = normalized.replace(/[\\/]+/g, "/");
-        break;
-      case "windows":
-        normalized = normalized.replace(/[\\/]+/g, "\\");
-        break;
-      case "mixed":
-        // Keep as-is
-        break;
-    }
+    // Always normalize to forward slashes first
+    normalized = normalized.replace(/[\\/]+/g, "/");
 
     // Handle base path
     switch (base) {
       case "root":
-        normalized = path.join(this.config.targetDir, normalized);
+        if (!normalized.startsWith("/")) {
+          normalized = path.join(this.config.targetDir, normalized).replace(/[\\/]+/g, "/");
+        }
         break;
       case "relative":
-        if (path.isAbsolute(normalized)) {
-          normalized = path.relative(this.config.targetDir, normalized);
+        if (normalized.startsWith(this.config.targetDir)) {
+          normalized = path.relative(this.config.targetDir, normalized).replace(/[\\/]+/g, "/");
+        } else if (normalized.startsWith("/")) {
+          normalized = normalized.substring(1);
         }
         break;
       case "absolute":
-        if (!path.isAbsolute(normalized)) {
-          normalized = path.resolve(this.config.targetDir, normalized);
+        if (!normalized.startsWith("/")) {
+          normalized = path.join(this.config.targetDir, normalized).replace(/[\\/]+/g, "/");
         }
         break;
     }
@@ -502,6 +536,19 @@ export class PathNormalizer {
         break;
       case "preserve":
         // Keep as-is
+        break;
+    }
+
+    // Handle path separators for final output
+    switch (style) {
+      case "unix":
+        // Already normalized to forward slashes
+        break;
+      case "windows":
+        normalized = normalized.replace(/\//g, "\\");
+        break;
+      case "mixed":
+        // Keep as-is after initial normalization
         break;
     }
 
