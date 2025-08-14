@@ -1,7 +1,7 @@
 {
   "name": "forge-tree",
   "version": "1.5.0",
-  "description": "Interactive CLI to scaffold projects from an ASCII tree. Parses hierarchies, generates files/folders, runs smart detectors (Next.js, Firebase, npm init), and emits dotfiles/formatters.",
+  "description": "A powerful tool to scaffold project structures from ASCII tree diagrams. Supports smart detection of project types, custom templates, and extensive configuration options.",
   "keywords": [
     "scaffold",
     "cli",
