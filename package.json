@@ -52,7 +52,14 @@
     "start": "node dist/index.js",
     "lint": "node -e \"process.exit(0)\"",
     "test": "npm run build && vitest run",
-    "test:watch": "npm run build && vitest"
+    "test:watch": "npm run build && vitest",
+    "ci": "npm ci && npm run ci:verify",
+    "ci:verify": "npm run ci:lint && npm run ci:test && npm run ci:build",
+    "ci:lint": "npm run lint",
+    "ci:test": "npm run test -- --coverage --reporter=default",
+    "ci:build": "npm run build",
+    "ci:clean": "rm -rf node_modules dist coverage .nyc_output",
+    "ci:audit": "npm audit --production"
   },
   "dependencies": {
     "chalk": "^5.3.0",
