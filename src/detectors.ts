@@ -376,13 +376,13 @@ export const CustomDetector = (init: CustomInitializer): Detector => ({
     if (target) {
       // If specifically targeted, only match those directories
       return target.targetDirs.some(pattern => 
-        new RegExp(pattern.replace('*', '.*')).test(n.path)
+        new RegExp(pattern.replace(/\*/g, '.*')).test(n.path)
       );
     }
 
     // Otherwise, check directory and file patterns
     if (init.matchDirs && !init.matchDirs.some((pattern: string) => 
-      new RegExp(pattern.replace('*', '.*')).test(n.name)
+      new RegExp(pattern.replace(/\*/g, '.*')).test(n.name)
     )) {
       return false;
     }
