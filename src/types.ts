@@ -1,4 +1,12 @@
-export type ForgeConfig = {
+export type TreeStyle = {
+    indent: string;        // The indentation string (e.g., "  ", "    ")
+    vertical: string;      // Vertical line (e.g., "│", "|")
+    horizontal: string;    // Horizontal line (e.g., "─", "-")
+    corner: string;        // Corner piece (e.g., "└", "L")
+    branch: string;        // Branch piece (e.g., "├", "+")
+  };
+
+  export type ForgeConfig = {
     targetDir: string;
     treeText?: string;
     treeFile?: string;
@@ -10,6 +18,16 @@ export type ForgeConfig = {
     runDetectors: boolean;
     generateDotfiles: boolean;
     cwd: string;
+    // New configuration options
+    treeStyle?: TreeStyle;
+    overwriteMode?: "ask" | "skip" | "force";
+    skipExisting?: boolean;
+    preserveGitIgnore?: boolean;
+    preservePackageJson?: boolean;
+    preserveConfig?: boolean;
+    logLevel?: "silent" | "error" | "warn" | "info" | "debug";
+    templateDir?: string;  // Custom template directory
+    variables?: Record<string, string>;  // Template variables
   };
   
   export type NodeKind = "dir" | "file";
