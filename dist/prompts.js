@@ -58,6 +58,10 @@ export async function confirmPlan(steps, yes) {
 export async function askPerNode(_node, _id) {
     if (AUTO)
         return false; // headless: never run per-node external steps
+    // For npm-init, only run at root level
+    if (_id === "npm-init" && _node.path !== _node.name) {
+        return false;
+    }
     // Check if directory already has relevant files
     const hasExistingFiles = _node.children.some(child => {
         switch (_id) {
@@ -76,21 +80,13 @@ export async function askPerNode(_node, _id) {
         console.warn(`\n⚠️  Warning: Directory "${_node.path}" already contains ${_id} related files.`);
         console.warn('Running this generator may overwrite existing files.\n');
     }
-    const res = await prompts([
-        {
-            type: 'toggle',
-            name: 'go',
-            message: `Run ${_id} for "${_node.path}"?${hasExistingFiles ? ' (files may be overwritten)' : ''}`,
-            initial: !hasExistingFiles, // Default to no if files exist
-            active: 'yes',
-            inactive: 'no'
-        },
-        {
-            type: (prev) => prev && hasExistingFiles ? 'confirm' : null,
-            name: 'confirm',
-            message: 'Are you sure you want to overwrite existing files?',
-            initial: false
-        }
-    ]);
-    return !!res.go && (!hasExistingFiles || res.confirm);
+    const res = await prompts({
+        type: 'toggle',
+        name: 'go',
+        message: `Run ${_id} for "${_node.path}"?${hasExistingFiles ? ' (files may be overwritten)' : ''}`,
+        initial: !hasExistingFiles, // Default to no if files exist
+        active: 'yes',
+        inactive: 'no'
+    });
+    return !!res.go;
 }

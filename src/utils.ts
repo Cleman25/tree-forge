@@ -64,39 +64,76 @@ export function pmArgs(pm: NonNullable<ForgeConfig["packageManager"]>) {
   };
 }
 
-export async function run(action: PlanAction) {
+export async function run(action: PlanAction, logger?: any) {
   if (action.type === "mkdir") {
-    await ensureDir(action.path);
+    try {
+      await ensureDir(action.path);
+      logger?.logDirectoryCreated(action.path);
+    } catch (error) {
+      logger?.logDirectoryFailed(action.path, error as Error);
+      throw error;
+    }
     return;
   }
   if (action.type === "write") {
-    await writeFileSafe(action.path, action.content);
+    try {
+      await writeFileSafe(action.path, action.content);
+      logger?.logFileCreated(action.path);
+    } catch (error) {
+      logger?.logFileFailed(action.path, error as Error);
+      throw error;
+    }
     return;
   }
   if (action.type === "ensurePkg") {
     if (!existsSync(action.path)) {
-      await ensureDir(path.dirname(action.path));
-      await writeFileSafe(
-        action.path,
-        JSON.stringify(
-          {
-            name: action.name || path.basename(path.dirname(action.path)),
-            version: "0.0.0",
-            private: true
-          },
-          null,
-          2
-        ) + "\n"
-      );
+      try {
+        await ensureDir(path.dirname(action.path));
+        await writeFileSafe(
+          action.path,
+          JSON.stringify(
+            {
+              name: action.name || path.basename(path.dirname(action.path)),
+              version: "0.0.0",
+              private: true
+            },
+            null,
+            2
+          ) + "\n"
+        );
+        logger?.logFileCreated(action.path);
+      } catch (error) {
+        logger?.logFileFailed(action.path, error as Error);
+        throw error;
+      }
+    } else {
+      logger?.logFileSkipped(action.path, 'File already exists');
     }
     return;
   }
   if (action.type === "exec") {
-    await execa(action.cmd, action.args, { cwd: action.cwd, stdio: "inherit", env: action.env });
+    try {
+      await execa(action.cmd, action.args, { cwd: action.cwd, stdio: "inherit", env: action.env });
+      logger?.info('Command executed', {
+        command: action.cmd,
+        args: action.args,
+        cwd: action.cwd,
+        env: action.env
+      });
+    } catch (error) {
+      logger?.error('Command failed', {
+        command: action.cmd,
+        args: action.args,
+        cwd: action.cwd,
+        env: action.env,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 }
 
-export async function applyPlan(plan: PlanAction[], dryRun: boolean) {
+export async function applyPlan(plan: PlanAction[], dryRun: boolean, logger?: any) {
   for (const step of plan) {
     if (dryRun) {
       const desc =
@@ -109,8 +146,16 @@ export async function applyPlan(plan: PlanAction[], dryRun: boolean) {
           : `exec ${step.cmd} ${step.args.join(" ")} (cwd=${step.cwd})`;
       // eslint-disable-next-line no-console
       console.log(chalk.gray("•"), desc);
+      logger?.info('Dry run action', {
+        type: step.type,
+        metadata: {
+          operation: step.type,
+          details: desc,
+          ...(step.type !== 'exec' ? { path: step.path } : { cwd: step.cwd })
+        }
+      });
     } else {
-      await run(step);
+      await run(step, logger);
     }
   }
 }

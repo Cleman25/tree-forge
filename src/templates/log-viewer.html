@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forge Tree Log Viewer</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <script src="https://unpkg.com/@mui/material@latest/umd/material-ui.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-timeline@latest/dist/vis-timeline-graph2d.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@latest/dist/vis-network.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vis-timeline@latest/dist/vis-timeline-graph2d.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1976d2;
+            --secondary-color: #dc004e;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
+            --background-color: #f5f5f5;
+            --paper-color: #ffffff;
+            --text-primary: rgba(0, 0, 0, 0.87);
+            --text-secondary: rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #90caf9;
+            --secondary-color: #f48fb1;
+            --success-color: #81c784;
+            --warning-color: #ffb74d;
+            --error-color: #e57373;
+            --background-color: #121212;
+            --paper-color: #1e1e1e;
+            --text-primary: rgba(255, 255, 255, 0.87);
+            --text-secondary: rgba(255, 255, 255, 0.6);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+
+        #app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: var(--paper-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-content {
+            padding: 1rem;
+            max-height: 800px;
+            overflow-y: auto;
+            transition: all 0.3s ease-in-out;
+            opacity: 1;
+        }
+
+        .card-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+        .card-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 3rem;
+        }
+
+        .card-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0;
+        }
+
+        .card-header h2::before {
+            content: '▼';
+            display: inline-block;
+            font-size: 0.8em;
+            margin-right: 0.5rem;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .card-header.collapsed h2::before {
+            transform: rotate(-90deg);
+        }
+
+        .card-header .filter-button {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .log-entry:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+
+        .log-entry.collapsed .log-details {
+            display: none;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-timestamp {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .log-level {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .log-level.error { background-color: var(--error-color); color: white; }
+        .log-level.warn { background-color: var(--warning-color); color: white; }
+        .log-level.info { background-color: var(--primary-color); color: white; }
+        .log-level.debug { background-color: var(--secondary-color); color: white; }
+        .log-level.verbose { background-color: var(--success-color); color: white; }
+
+        .log-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .log-message {
+            font-family: monospace;
+            white-space: pre-wrap;
+            line-height: 1.4;
+            color: var(--text-primary);
+        }
+
+        .log-message .path {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .log-message .duration {
+            color: var(--text-secondary);
+            font-size: 0.875em;
+        }
+
+        .log-details {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background-color: rgba(0,0,0,0.05);
+            border-radius: 4px;
+            font-size: 0.875rem;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+
+        .log-entry.collapsed .log-details {
+            margin-top: 0;
+            padding: 0;
+            height: 0;
+        }
+
+        .log-container {
+            max-height: 500px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) transparent;
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stats-card {
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: var(--paper-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stats-title {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-value {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .fs-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .fs-stats-section {
+            background-color: var(--paper-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .fs-stats-section h3 {
+            color: var(--text-primary);
+            font-size: 1.125rem;
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .fs-stats-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .fs-stats-item:last-child {
+            border-bottom: none;
+        }
+
+        .fs-stats-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .fs-stats-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .fs-stats-value.error {
+            color: var(--error-color);
+        }
+            color: var(--primary-color);
+        }
+
+        .visualization-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #visualization-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            margin-top: 1rem;
+        }
+
+        .visualization {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .visualization.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #timeline-chart, #gantt-chart, #network-chart, #treemap-chart {
+            width: 100%;
+            height: 100%;
+            background-color: var(--paper-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .export-progress {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--paper-color);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            text-align: center;
+        }
+
+        .export-progress.visible {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            margin: 1rem auto;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        #tail-status {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background-color: var(--paper-color);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        #tail-status.active {
+            display: flex;
+        }
+
+        #tail-status .material-icons {
+            font-size: 1rem;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: var(--paper-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .config-section {
+            padding: 1rem;
+            background-color: var(--background-color);
+            border-radius: 4px;
+        }
+
+        .config-section h3 {
+            margin: 0 0 1rem 0;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .config-item:last-child {
+            border-bottom: none;
+        }
+
+        .config-key {
+            color: var(--text-secondary);
+            font-family: monospace;
+            margin-right: 1rem;
+        }
+
+        .config-value {
+            color: var(--text-primary);
+            font-family: monospace;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .config-value.true {
+            color: var(--success-color);
+        }
+
+        .config-value.false {
+            color: var(--error-color);
+        }
+
+        .config-value.default {
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .file-selectors {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .file-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .file-selector label {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .file-selector input[type="file"] {
+            flex: 1;
+            padding: 0.25rem;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 4px;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+
+        .search-toolbar {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .filter-button:hover {
+            background-color: #1565c0;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        @media (max-width: 600px) {
+            .content {
+                padding: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>Forge Tree Log Viewer</h1>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span class="material-icons">dark_mode</span>
+            </button>
+        </div>
+
+        <div class="content">
+            <div class="toolbar">
+                <div class="file-selectors">
+                    <div class="file-selector">
+                        <label for="log-file">Log File:</label>
+                        <input type="file" id="log-file" accept=".log,text/plain,application/json" onchange="handleLogFileSelect(event)">
+                    </div>
+                    <div class="file-selector">
+                        <label for="stats-file">Stats File:</label>
+                        <input type="file" id="stats-file" accept=".json" onchange="handleStatsFileSelect(event)">
+                    </div>
+                </div>
+                <div class="search-toolbar">
+                    <input type="text" class="search-box" placeholder="Search logs..." oninput="filterLogs(this.value)">
+                    <button class="filter-button" onclick="toggleLevel('error')">Error</button>
+                    <button class="filter-button" onclick="toggleLevel('warn')">Warn</button>
+                    <button class="filter-button" onclick="toggleLevel('info')">Info</button>
+                    <button class="filter-button" onclick="toggleLevel('debug')">Debug</button>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="card">
+                <div class="card-header" onclick="toggleSection(this)">
+                    <h2>Run Configuration</h2>
+                    <button class="filter-button" onclick="event.stopPropagation(); refreshConfig()">Refresh</button>
+                </div>
+                <div class="card-content">
+                    <div class="config-grid">
+                        <div class="config-section">
+                            <h3>Core Settings</h3>
+                            <div id="core-config"></div>
+                        </div>
+                        <div class="config-section">
+                            <h3>Logging Settings</h3>
+                            <div id="log-config"></div>
+                        </div>
+                        <div class="config-section">
+                            <h3>Feature Flags</h3>
+                            <div id="feature-config"></div>
+                        </div>
+                        <div class="config-section">
+                            <h3>Git Settings</h3>
+                            <div id="git-config"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="card">
+                <div class="card-header" onclick="toggleSection(this)">
+                    <h2>Statistics</h2>
+                    <button class="filter-button" onclick="event.stopPropagation(); refreshStats()">Refresh</button>
+                </div>
+                <div class="card-content">
+                    <div class="toolbar">
+                        <button class="filter-button" onclick="exportPDF()">Export PDF</button>
+                        <button class="filter-button" onclick="exportCSV()">Export CSV</button>
+                        <button class="filter-button" onclick="exportJSON()">Export JSON</button>
+                        <button class="filter-button" onclick="toggleTailing()">
+                            <span class="material-icons" id="tail-icon">play_circle</span>
+                            <span id="tail-text">Start Tailing</span>
+                        </button>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stats-card">
+                            <div class="stats-title">Total Operations</div>
+                            <div class="stats-value" id="total-ops">0</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-title">Success Rate</div>
+                            <div class="stats-value" id="success-rate">0%</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-title">Average Duration</div>
+                            <div class="stats-value" id="avg-duration">0ms</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-title">Error Rate</div>
+                            <div class="stats-value" id="error-rate">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="fs-stats-grid">
+                        <div class="fs-stats-section">
+                            <h3>Directory Operations</h3>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Created:</span>
+                                <span id="dir-created" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Skipped:</span>
+                                <span id="dir-skipped" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Failed:</span>
+                                <span id="dir-failed" class="fs-stats-value error">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Total:</span>
+                                <span id="dir-total" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Success Rate:</span>
+                                <span id="dir-success-rate" class="fs-stats-value">0%</span>
+                            </div>
+                        </div>
+                        <div class="fs-stats-section">
+                            <h3>File Operations</h3>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Created:</span>
+                                <span id="file-created" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Modified:</span>
+                                <span id="file-modified" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Skipped:</span>
+                                <span id="file-skipped" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Failed:</span>
+                                <span id="file-failed" class="fs-stats-value error">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Total:</span>
+                                <span id="file-total" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Success Rate:</span>
+                                <span id="file-success-rate" class="fs-stats-value">0%</span>
+                            </div>
+                        </div>
+                        <div class="fs-stats-section">
+                            <h3>Initializer Operations</h3>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Total:</span>
+                                <span id="init-total" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Successful:</span>
+                                <span id="init-successful" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Failed:</span>
+                                <span id="init-failed" class="fs-stats-value error">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Skipped:</span>
+                                <span id="init-skipped" class="fs-stats-value">0</span>
+                            </div>
+                            <div class="fs-stats-item">
+                                <span class="fs-stats-label">Success Rate:</span>
+                                <span id="init-success-rate" class="fs-stats-value">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="visualization-tabs">
+                        <button class="tab-button active" onclick="showVisualization('timeline')">Timeline</button>
+                        <button class="tab-button" onclick="showVisualization('gantt')">Gantt</button>
+                        <button class="tab-button" onclick="showVisualization('network')">Network</button>
+                        <button class="tab-button" onclick="showVisualization('treemap')">Treemap</button>
+                    </div>
+
+                    <div id="visualization-container">
+                        <div class="visualization active" id="timeline-container">
+                            <canvas id="timeline-chart"></canvas>
+                        </div>
+                        <div class="visualization" id="gantt-container">
+                            <div id="gantt-chart"></div>
+                        </div>
+                        <div class="visualization" id="network-container">
+                            <div id="network-chart"></div>
+                        </div>
+                        <div class="visualization" id="treemap-container">
+                            <canvas id="treemap-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Section -->
+            <div class="card">
+                <div class="card-header" onclick="toggleSection(this)">
+                    <h2>Logs</h2>
+                    <button class="filter-button" onclick="event.stopPropagation(); refreshLogs()">Refresh</button>
+                </div>
+                <div class="card-content" id="log-container">
+                    <!-- Log entries will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tail-status">
+        <span class="material-icons">sync</span>
+        <span>Tailing logs...</span>
+    </div>
+
+    <div class="export-progress">
+        <h3>Exporting...</h3>
+        <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
+        </div>
+        <p id="export-status">Processing data...</p>
+    </div>
+
+    <script>
+        // File data
+        let logData = null;
+        let statsData = null;
+        let cachedLogData = localStorage.getItem('forge-tree-log-data');
+        let cachedStatsData = localStorage.getItem('forge-tree-stats-data');
+
+        // Log data
+        let logs = [];
+
+        // File handlers
+        async function handleLogFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                logData = text;
+                localStorage.setItem('forge-tree-log-data', text);
+                await processLogData(text);
+            } catch (error) {
+                console.error('Error reading log file:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'log-entry';
+                errorMessage.style.color = 'var(--error-color)';
+                errorMessage.textContent = `Failed to read log file: ${error.message}`;
+                document.getElementById('log-container').appendChild(errorMessage);
+            }
+        }
+
+        async function handleStatsFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                statsData = text;
+                localStorage.setItem('forge-tree-stats-data', text);
+                await processStatsData(text);
+            } catch (error) {
+                console.error('Error reading stats file:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'log-entry';
+                errorMessage.style.color = 'var(--error-color)';
+                errorMessage.textContent = `Failed to read stats file: ${error.message}`;
+                document.getElementById('log-container').appendChild(errorMessage);
+            }
+        }
+
+        async function processLogData(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            // Try parsing as JSON Lines first
+            const jsonLogs = lines.map(line => {
+                try {
+                    const cleanLine = line.replace(/,\s*$/, '');
+                    const parsed = JSON.parse(cleanLine);
+                    
+                    // If metadata exists and it's a string, try to parse it
+                    if (parsed.metadata && typeof parsed.metadata === 'string') {
+                        try {
+                            parsed.metadata = JSON.parse(parsed.metadata);
+                        } catch {
+                            // Keep as string if parsing fails
+                        }
+                    }
+                    
+                    return parsed;
+                } catch {
+                    // Try parsing text format
+                    const match = line.match(/\[(.*?)\]\s+(\w+):\s+(.*)/);
+                    if (match) {
+                        return {
+                            timestamp: match[1],
+                            level: match[2],
+                            action: 'log',
+                            message: match[3]
+                        };
+                    }
+                    return null;
+                }
+            }).filter(log => log);
+
+            if (jsonLogs.length > 0) {
+                logs = jsonLogs;
+            } else {
+                // Try parsing as a single JSON object
+                try {
+                    const parsed = JSON.parse(text);
+                    if (Array.isArray(parsed)) {
+                        logs = parsed;
+                    } else {
+                        logs = [parsed];
+                    }
+                } catch {
+                    // If all parsing fails, treat as plain text
+                    logs = lines.map(line => ({
+                        timestamp: new Date().toISOString(),
+                        level: 'info',
+                        action: 'log',
+                        message: line
+                    }));
+                }
+            }
+            
+            // Format metadata for display
+            logs = logs.map(log => {
+                if (log.metadata) {
+                    try {
+                        if (typeof log.metadata === 'string') {
+                            log.metadata = JSON.parse(log.metadata);
+                        }
+                    } catch {
+                        // Keep as string if parsing fails
+                    }
+                }
+                return log;
+            });
+            
+            const logContainer = document.getElementById('log-container');
+            logContainer.innerHTML = logs.map(createLogEntry).join('');
+
+            // Update visualizations
+            updateVisualization(currentVisualization);
+        }
+
+        async function processStatsData(text) {
+            let stats;
+
+            // Try parsing as JSON Lines first
+            // Split on newlines and handle CRLF
+            const lines = text.replace(/\r\n/g, '\n').split('\n').filter(line => line.trim());
+            
+            // Try to parse each line as JSON
+            const jsonLines = lines.map(line => {
+                try {
+                    // Remove any trailing commas that might cause issues
+                    const cleanLine = line.replace(/,\s*$/, '');
+                    const parsed = JSON.parse(cleanLine);
+                    
+                    // If metadata exists and it's a string, try to parse it
+                    if (parsed.metadata && typeof parsed.metadata === 'string') {
+                        try {
+                            parsed.metadata = JSON.parse(parsed.metadata);
+                        } catch {
+                            // Keep as string if parsing fails
+                        }
+                    }
+                    
+                    return parsed;
+                } catch (e) {
+                    // If it fails, try to extract the JSON object using regex
+                    try {
+                        const match = line.match(/\{[^]*\}/);
+                        if (match) {
+                            const parsed = JSON.parse(match[0]);
+                            
+                            // If metadata exists and it's a string, try to parse it
+                            if (parsed.metadata && typeof parsed.metadata === 'string') {
+                                try {
+                                    parsed.metadata = JSON.parse(parsed.metadata);
+                                } catch {
+                                    // Keep as string if parsing fails
+                                }
+                            }
+                            
+                            return parsed;
+                        }
+                    } catch {
+                        // If both attempts fail, skip this line
+                        console.debug('Failed to parse line:', line);
+                    }
+                    return null;
+                }
+            }).filter(line => line);
+
+            if (jsonLines.length > 0) {
+                // Look for config data first
+                const configEntry = jsonLines.find(line => 
+                    line.metadata?.config || 
+                    line.config
+                );
+
+                if (configEntry) {
+                    const config = configEntry.metadata?.config || configEntry.config;
+                    updateConfig(config);
+                }
+
+                // Look for stats in different formats
+                // First, try to find entries with structure data
+                const structureEntries = jsonLines.filter(line => 
+                    line.metadata?.structure || 
+                    line.structure ||
+                    line.metadata?.stats?.structure
+                );
+
+                if (structureEntries.length > 0) {
+                    // Use the latest structure entry
+                    const latestStructure = structureEntries[structureEntries.length - 1];
+                    stats = {
+                        totalOperations: 0,
+                        successRate: 100,
+                        errorRate: 0,
+                        averageDuration: latestStructure.duration || 0,
+                        structure: latestStructure.metadata?.structure || 
+                                 latestStructure.structure ||
+                                 latestStructure.metadata?.stats?.structure
+                    };
+
+                    // Calculate total operations from structure
+                    if (stats.structure) {
+                        stats.totalOperations = 
+                            (stats.structure.totalDirs || 0) + 
+                            (stats.structure.totalFiles || 0);
+                    }
+                } else {
+                    // If no structure data, try other formats
+                    const latestEntry = jsonLines[jsonLines.length - 1];
+                    
+                    if (latestEntry.metadata?.stats) {
+                        // Format: { metadata: { stats: { ... } } }
+                        stats = latestEntry.metadata.stats;
+                    } else if (latestEntry.stats) {
+                        // Format: { stats: { ... } }
+                        stats = latestEntry.stats;
+                    } else if (latestEntry.totalOperations !== undefined) {
+                        // Format: { totalOperations: n, ... }
+                        stats = latestEntry;
+                    } else {
+                        // Try to find any entry with stats
+                        const statsEntry = jsonLines.find(line => 
+                            line.metadata?.stats || 
+                            line.stats || 
+                            line.totalOperations !== undefined
+                        );
+                        if (statsEntry) {
+                            stats = statsEntry.metadata?.stats || statsEntry.stats || statsEntry;
+                        }
+                    }
+                }
+            }
+
+            if (!stats) {
+                try {
+                    // Try parsing as a single JSON object
+                    const parsed = JSON.parse(text);
+                    if (parsed.metadata?.stats) {
+                        stats = parsed.metadata.stats;
+                    } else if (parsed.stats) {
+                        stats = parsed.stats;
+                    } else if (parsed.totalOperations !== undefined) {
+                        stats = parsed;
+                    }
+                } catch (e) {
+                    // Try parsing as concatenated JSON
+                    // This handles cases where JSON objects are concatenated without proper line breaks
+                    const matches = text.match(/\{[^{}]*\}/g);
+                    if (matches) {
+                        for (const match of matches) {
+                            try {
+                                const parsed = JSON.parse(match);
+                                if (parsed.metadata?.stats) {
+                                    stats = parsed.metadata.stats;
+                                    break;
+                                } else if (parsed.stats) {
+                                    stats = parsed.stats;
+                                    break;
+                                } else if (parsed.totalOperations !== undefined) {
+                                    stats = parsed;
+                                    break;
+                                }
+                            } catch {
+                                // Skip invalid JSON
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!stats) {
+                throw new Error('No valid stats data found in file');
+            }
+
+            updateStats(stats);
+        }
+
+        // Visualization state
+        let currentVisualization = 'timeline';
+        let tailingEnabled = false;
+        let tailingInterval = null;
+        let lastLogTimestamp = null;
+        let charts = {
+            timeline: null,
+            gantt: null,
+            network: null,
+            treemap: null
+        };
+
+        // Theme toggle
+        function toggleTheme() {
+            document.body.parentElement.setAttribute('data-theme',
+                document.body.parentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+            );
+        }
+
+        // Log filtering
+        let activeFilters = new Set(['error', 'warn', 'info', 'debug']);
+        
+        function toggleLevel(level) {
+            const button = document.querySelector(`button[onclick="toggleLevel('${level}')"]`);
+            if (activeFilters.has(level)) {
+                activeFilters.delete(level);
+                button.style.opacity = '0.5';
+            } else {
+                activeFilters.add(level);
+                button.style.opacity = '1';
+            }
+            filterLogs(document.querySelector('.search-box').value);
+        }
+
+        function filterLogs(searchText) {
+            const entries = document.querySelectorAll('.log-entry');
+            entries.forEach(entry => {
+                const level = entry.querySelector('.log-level').textContent.toLowerCase();
+                const message = entry.querySelector('.log-message').textContent.toLowerCase();
+                const matchesFilter = activeFilters.has(level);
+                const matchesSearch = !searchText || message.includes(searchText.toLowerCase());
+                entry.style.display = matchesFilter && matchesSearch ? 'flex' : 'none';
+            });
+        }
+
+        // Log entry template
+        function createLogEntry(log) {
+            const details = [];
+            if (log.metadata) {
+                details.push(JSON.stringify(log.metadata, null, 2));
+            }
+            
+            // Extract timestamp from message if it exists
+            let message = log.message;
+            const timestampMatch = message.match(/^\[(.*?)\]\s+\[.*?\]\s+(.*)$/);
+            if (timestampMatch) {
+                message = timestampMatch[2];
+            }
+
+            // Format message with path and duration
+            let formattedMessage = message;
+            const pathMatch = message.match(/^(.*?)\s+\((.*?)\)(\s+\((\d+)ms\))?(.*)$/);
+            if (pathMatch) {
+                const [, action, path, , duration, rest] = pathMatch;
+                formattedMessage = `${action} <span class="path">${path}</span>${duration ? ` <span class="duration">(${duration}ms)</span>` : ''}${rest}`;
+            }
+            
+            return `
+                <div class="log-entry collapsed">
+                    <div class="log-timestamp">${log.timestamp}</div>
+                    <div class="log-level ${log.level.toLowerCase()}">${log.level}</div>
+                    <div class="log-content">
+                        <div class="log-message">${log.action !== 'log' ? `[${log.action}] ` : ''}${formattedMessage}</div>
+                        ${details.length > 0 ? `<div class="log-details">${details.join('\n')}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Stats update
+        function updateConfig(config) {
+            try {
+                // Core settings
+                const coreConfig = {
+                    targetDir: config.targetDir || '.',
+                    tabIndentationSize: config.tabIndentationSize || 2,
+                    detectAsciiGuides: config.detectAsciiGuides ?? true,
+                    packageManager: config.packageManager || 'npm',
+                    treeStyle: config.treeStyle || 'default'
+                };
+
+                // Logging settings
+                const logConfig = {
+                    enabled: config.logging?.enabled ?? true,
+                    level: config.logging?.level || 'info',
+                    format: config.logging?.format || 'text',
+                    file: config.logging?.file || 'forge-tree.log',
+                    console: config.logging?.console ?? true,
+                    includeTimestamps: config.logging?.includeTimestamps ?? true,
+                    includeDuration: config.logging?.includeDuration ?? true,
+                    includeMetadata: config.logging?.includeMetadata ?? true
+                };
+
+                // Feature flags
+                const featureConfig = {
+                    detectors: config.runDetectors ?? true,
+                    dotfiles: config.generateDotfiles ?? true,
+                    dryRun: config.dryRun ?? false,
+                    quiet: config.quiet ?? false,
+                    showTree: config.showTree ?? true,
+                    showResult: config.showResult ?? true,
+                    allowNestedInit: config.allowNestedInit ?? false
+                };
+
+                // Git settings
+                const gitConfig = {
+                    git: config.git ?? false,
+                    github: config.github || false,
+                    private: config.private ?? false,
+                    noPush: config.noPush ?? false,
+                    branch: config.branch || 'main'
+                };
+
+                // Update UI
+                updateConfigSection('core-config', coreConfig);
+                updateConfigSection('log-config', logConfig);
+                updateConfigSection('feature-config', featureConfig);
+                updateConfigSection('git-config', gitConfig);
+            } catch (error) {
+                console.error('Error updating config:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'log-entry';
+                errorMessage.style.color = 'var(--error-color)';
+                errorMessage.textContent = `Failed to update config: ${error.message}`;
+                document.getElementById('log-container').appendChild(errorMessage);
+            }
+        }
+
+        function updateConfigSection(id, config) {
+            const container = document.getElementById(id);
+            container.innerHTML = Object.entries(config)
+                .map(([key, value]) => {
+                    const valueClass = typeof value === 'boolean' 
+                        ? value.toString()
+                        : value === config[key] ? 'default' : '';
+                    return `
+                        <div class="config-item">
+                            <span class="config-key">${key}:</span>
+                            <span class="config-value ${valueClass}">${value}</span>
+                        </div>
+                    `;
+                })
+                .join('');
+        }
+
+        function refreshConfig() {
+            loadData();
+        }
+
+        function updateStats(stats) {
+            try {
+                // Handle both direct stats and nested stats
+                const statsData = stats.stats || stats;
+
+                // Extract stats from different formats
+                const totalOps = statsData.totalOperations || 
+                    statsData.structure?.totalDirs + statsData.structure?.totalFiles || 
+                    statsData.metadata?.structure?.totalDirs + statsData.metadata?.structure?.totalFiles || 
+                    0;
+
+                const successRate = statsData.successRate || 
+                    (statsData.structure?.successCount / totalOps * 100) || 
+                    (statsData.metadata?.structure?.successCount / totalOps * 100) || 
+                    0;
+
+                const avgDuration = statsData.averageDuration || 
+                    statsData.structure?.avgDuration || 
+                    statsData.metadata?.structure?.avgDuration || 
+                    0;
+
+                const errorRate = statsData.errorRate || 
+                    (statsData.structure?.errorCount / totalOps * 100) || 
+                    (statsData.metadata?.structure?.errorCount / totalOps * 100) || 
+                    0;
+
+                // Update UI
+                document.getElementById('total-ops').textContent = totalOps;
+                document.getElementById('success-rate').textContent = Math.round(successRate) + '%';
+                document.getElementById('avg-duration').textContent = Math.round(avgDuration) + 'ms';
+                document.getElementById('error-rate').textContent = Math.round(errorRate) + '%';
+
+                // Extract file system operation stats from logs
+                const dirStats = { created: 0, skipped: 0, failed: 0, total: 0 };
+                const fileStats = { created: 0, modified: 0, skipped: 0, failed: 0, total: 0 };
+                const initStats = { total: 0, successful: 0, failed: 0, skipped: 0 };
+
+                logs.forEach(log => {
+                    if (log.metadata?.stats) {
+                        const stats = log.metadata.stats;
+                        if (stats.directories) {
+                            dirStats.created += stats.directories.created || 0;
+                            dirStats.skipped += stats.directories.skipped || 0;
+                            dirStats.failed += stats.directories.failed || 0;
+                        }
+                        if (stats.files) {
+                            fileStats.created += stats.files.created || 0;
+                            fileStats.modified += stats.files.modified || 0;
+                            fileStats.skipped += stats.files.skipped || 0;
+                            fileStats.failed += stats.files.failed || 0;
+                        }
+                        if (stats.initializers) {
+                            initStats.total += stats.initializers.total || 0;
+                            initStats.successful += stats.initializers.successful || 0;
+                            initStats.failed += stats.initializers.failed || 0;
+                            initStats.skipped += stats.initializers.skipped || 0;
+                        }
+                    }
+                });
+
+                // Calculate totals and success rates
+                dirStats.total = dirStats.created + dirStats.skipped + dirStats.failed;
+                fileStats.total = fileStats.created + fileStats.modified + fileStats.skipped + fileStats.failed;
+
+                const dirSuccessRate = dirStats.total > 0 
+                    ? ((dirStats.created / dirStats.total) * 100).toFixed(1) + '%'
+                    : '0%';
+
+                const fileSuccessRate = fileStats.total > 0
+                    ? (((fileStats.created + fileStats.modified) / fileStats.total) * 100).toFixed(1) + '%'
+                    : '0%';
+
+                const initSuccessRate = initStats.total > 0
+                    ? ((initStats.successful / initStats.total) * 100).toFixed(1) + '%'
+                    : '0%';
+
+                // Update UI
+                // Directory stats
+                document.getElementById('dir-created').textContent = dirStats.created;
+                document.getElementById('dir-skipped').textContent = dirStats.skipped;
+                document.getElementById('dir-failed').textContent = dirStats.failed;
+                document.getElementById('dir-total').textContent = dirStats.total;
+                document.getElementById('dir-success-rate').textContent = dirSuccessRate;
+
+                // File stats
+                document.getElementById('file-created').textContent = fileStats.created;
+                document.getElementById('file-modified').textContent = fileStats.modified;
+                document.getElementById('file-skipped').textContent = fileStats.skipped;
+                document.getElementById('file-failed').textContent = fileStats.failed;
+                document.getElementById('file-total').textContent = fileStats.total;
+                document.getElementById('file-success-rate').textContent = fileSuccessRate;
+
+                // Initializer stats
+                document.getElementById('init-total').textContent = initStats.total;
+                document.getElementById('init-successful').textContent = initStats.successful;
+                document.getElementById('init-failed').textContent = initStats.failed;
+                document.getElementById('init-skipped').textContent = initStats.skipped;
+                document.getElementById('init-success-rate').textContent = initSuccessRate;
+
+                // Update visualizations
+                updateVisualization(currentVisualization);
+            } catch (error) {
+                console.error('Error updating stats:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'log-entry';
+                errorMessage.style.color = 'var(--error-color)';
+                errorMessage.textContent = `Failed to update stats: ${error.message}`;
+                document.getElementById('log-container').appendChild(errorMessage);
+            }
+        }
+
+        // Visualization functions
+        function showVisualization(type) {
+            // Update active tab
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === type);
+            });
+
+            // Update active visualization
+            document.querySelectorAll('.visualization').forEach(vis => {
+                vis.classList.toggle('active', vis.id === `${type}-container`);
+            });
+
+            currentVisualization = type;
+            updateVisualization(type);
+        }
+
+        function updateVisualization(type) {
+            const container = document.getElementById(`${type}-chart`);
+            if (!container) return;
+
+            switch (type) {
+                case 'timeline':
+                    updateTimelineChart(container);
+                    break;
+                case 'gantt':
+                    updateGanttChart(container);
+                    break;
+                case 'network':
+                    updateNetworkChart(container);
+                    break;
+                case 'treemap':
+                    updateTreemapChart(container);
+                    break;
+            }
+        }
+
+        function updateTimelineChart(container) {
+            const timelineContainer = document.getElementById('timeline-container');
+            if (!timelineContainer) return;
+
+            // Clear previous chart
+            timelineContainer.innerHTML = '';
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.id = 'timeline-chart';
+            timelineContainer.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get canvas context');
+                return;
+            }
+
+            if (charts.timeline) charts.timeline.destroy();
+
+            // Check if we have any logs with duration
+            const logsWithDuration = logs.filter(log => 
+                log.duration && 
+                log.timestamp && 
+                !isNaN(new Date(log.timestamp).getTime())
+            );
+
+            if (logsWithDuration.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="no-data-message" style="
+                        text-align: center;
+                        padding: 20px;
+                        color: var(--text-secondary);
+                        font-style: italic;
+                    ">
+                        No timing data available yet
+                    </div>
+                `;
+                return;
+            }
+
+            const data = {
+                labels: logsWithDuration.map(log => new Date(log.timestamp).toLocaleTimeString()),
+                datasets: [{
+                    label: 'Duration (ms)',
+                    data: logsWithDuration.map(log => log.duration || 0),
+                    borderColor: getComputedStyle(document.body).getPropertyValue('--primary-color'),
+                    backgroundColor: getComputedStyle(document.body).getPropertyValue('--primary-color') + '40',
+                    fill: true,
+                    tension: 0.4 // Smooth curve
+                }]
+            };
+
+            try {
+                charts.timeline = new Chart(ctx, {
+                    type: 'line',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Duration (ms)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const log = logsWithDuration[context.dataIndex];
+                                        return [
+                                            `Duration: ${log.duration}ms`,
+                                            `Action: ${log.action || 'unknown'}`,
+                                            `Message: ${log.message || ''}`
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating timeline chart:', error);
+                timelineContainer.innerHTML = `
+                    <div class="error-message" style="
+                        text-align: center;
+                        padding: 20px;
+                        color: var(--error-color);
+                    ">
+                        Error creating timeline chart
+                    </div>
+                `;
+            }
+        }
+
+        function updateGanttChart(container) {
+            if (charts.gantt) charts.gantt.destroy();
+
+            const items = logs.map((log, i) => ({
+                id: i,
+                content: log.action,
+                start: new Date(log.timestamp),
+                end: new Date(new Date(log.timestamp).getTime() + (log.duration || 1000)),
+                type: 'range',
+                className: log.level.toLowerCase()
+            }));
+
+            const groups = [...new Set(logs.map(log => log.action))].map(action => ({
+                id: action,
+                content: action
+            }));
+
+            charts.gantt = new vis.Timeline(container, new vis.DataSet(items), {
+                groupOrder: 'content'
+            });
+        }
+
+        function updateNetworkChart(container) {
+            if (charts.network) charts.network.destroy();
+
+            const nodes = [];
+            const edges = [];
+            const nodeMap = new Map();
+
+            logs.forEach((log, i) => {
+                if (!nodeMap.has(log.action)) {
+                    nodeMap.set(log.action, nodes.length);
+                    nodes.push({
+                        id: nodes.length,
+                        label: log.action,
+                        level: log.level,
+                        value: 1
+                    });
+                } else {
+                    nodes[nodeMap.get(log.action)].value++;
+                }
+
+                if (i > 0) {
+                    const prevLog = logs[i - 1];
+                    edges.push({
+                        from: nodeMap.get(prevLog.action),
+                        to: nodeMap.get(log.action),
+                        arrows: 'to'
+                    });
+                }
+            });
+
+            const data = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+
+            charts.network = new vis.Network(container, data, {
+                physics: {
+                    stabilization: true,
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        springConstant: 0.04
+                    }
+                },
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        min: 10,
+                        max: 30
+                    }
+                }
+            });
+        }
+
+        function updateTreemapChart(container) {
+            const treemapContainer = document.getElementById('treemap-container');
+            if (!treemapContainer) return;
+
+            // Clear previous chart
+            treemapContainer.innerHTML = '';
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.id = 'treemap-chart';
+            treemapContainer.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get canvas context');
+                return;
+            }
+
+            if (charts.treemap) charts.treemap.destroy();
+
+            // Group logs by action and count
+            const actionCounts = {};
+            let totalOperations = 0;
+            logs.forEach(log => {
+                const action = log.action || 'unknown';
+                actionCounts[action] = (actionCounts[action] || 0) + 1;
+                totalOperations++;
+            });
+
+            // Skip if no data
+            if (totalOperations === 0) {
+                treemapContainer.innerHTML = `
+                    <div class="no-data-message" style="
+                        text-align: center;
+                        padding: 20px;
+                        color: var(--text-secondary);
+                        font-style: italic;
+                    ">
+                        No operation data available yet
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                // Convert action counts to treemap data
+                const treeData = [];
+                for (const [action, count] of Object.entries(actionCounts)) {
+                    treeData.push({
+                        name: action,
+                        value: count,
+                        percentage: ((count / totalOperations) * 100).toFixed(1)
+                    });
+                }
+
+                // Sort by count descending
+                treeData.sort((a, b) => b.value - a.value);
+
+                const data = {
+                    datasets: [{
+                        tree: treeData,
+                        key: 'value',
+                        groups: ['name'],
+                        spacing: 2,
+                        backgroundColor: (ctx) => {
+                            const colors = [
+                                getComputedStyle(document.body).getPropertyValue('--primary-color'),
+                                getComputedStyle(document.body).getPropertyValue('--secondary-color'),
+                                getComputedStyle(document.body).getPropertyValue('--success-color'),
+                                getComputedStyle(document.body).getPropertyValue('--warning-color')
+                            ];
+                            return colors[ctx.dataIndex % colors.length] + '80'; // Add transparency
+                        },
+                        labels: {
+                            display: true,
+                            align: 'center',
+                            position: 'middle',
+                            color: 'white',
+                            formatter: (ctx) => {
+                                const item = ctx.raw;
+                                return [
+                                    item.name,
+                                    `${item.value} (${item.percentage}%)`
+                                ];
+                            }
+                        }
+                    }]
+                };
+
+                charts.treemap = new Chart(ctx, {
+                    type: 'treemap',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Operation Distribution (${totalOperations} total)`,
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                padding: 20
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const item = ctx.raw;
+                                        return [
+                                            `Operation: ${item.name}`,
+                                            `Count: ${item.value}`,
+                                            `Percentage: ${item.percentage}%`
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating treemap chart:', error);
+                treemapContainer.innerHTML = `
+                    <div class="error-message" style="
+                        text-align: center;
+                        padding: 20px;
+                        color: var(--error-color);
+                    ">
+                        Error creating treemap chart
+                    </div>
+                `;
+            }
+        }
+
+        // Export functions
+        async function exportPDF() {
+            showExportProgress('Preparing PDF...');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.text('Forge Tree Log Report', 20, 20);
+            
+            // Add timestamp
+            doc.setFontSize(12);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+            
+            // Add statistics
+            doc.text('Statistics:', 20, 45);
+            doc.text(`Total Operations: ${document.getElementById('total-ops').textContent}`, 30, 55);
+            doc.text(`Success Rate: ${document.getElementById('success-rate').textContent}`, 30, 65);
+            doc.text(`Average Duration: ${document.getElementById('avg-duration').textContent}`, 30, 75);
+            doc.text(`Error Rate: ${document.getElementById('error-rate').textContent}`, 30, 85);
+            
+            // Add logs
+            doc.text('Logs:', 20, 100);
+            let y = 110;
+            logs.forEach((log, i) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                const text = `${new Date(log.timestamp).toLocaleString()} [${log.level}] ${log.action}: ${log.message}`;
+                doc.setFontSize(10);
+                doc.text(text, 20, y);
+                y += 10;
+                
+                updateExportProgress((i / logs.length) * 100);
+            });
+            
+            // Save the PDF
+            doc.save('forge-tree-logs.pdf');
+            hideExportProgress();
+        }
+
+        async function exportCSV() {
+            showExportProgress('Preparing CSV...');
+            const csv = Papa.unparse(logs.map(log => ({
+                timestamp: log.timestamp,
+                level: log.level,
+                action: log.action,
+                message: log.message,
+                duration: log.duration
+            })));
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'forge-tree-logs.csv';
+            link.click();
+            
+            hideExportProgress();
+        }
+
+        async function exportJSON() {
+            showExportProgress('Preparing JSON...');
+            const json = JSON.stringify(logs, null, 2);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'forge-tree-logs.json';
+            link.click();
+            
+            hideExportProgress();
+        }
+
+        function showExportProgress(message) {
+            const progress = document.querySelector('.export-progress');
+            progress.classList.add('visible');
+            document.getElementById('export-status').textContent = message;
+        }
+
+        function updateExportProgress(percent) {
+            document.querySelector('.progress-bar-fill').style.width = `${percent}%`;
+        }
+
+        function hideExportProgress() {
+            const progress = document.querySelector('.export-progress');
+            progress.classList.remove('visible');
+            document.querySelector('.progress-bar-fill').style.width = '0%';
+        }
+
+        // Log tailing
+        function toggleTailing() {
+            tailingEnabled = !tailingEnabled;
+            const icon = document.getElementById('tail-icon');
+            const text = document.getElementById('tail-text');
+            const status = document.getElementById('tail-status');
+            
+            if (tailingEnabled) {
+                icon.textContent = 'stop_circle';
+                text.textContent = 'Stop Tailing';
+                status.classList.add('active');
+                startTailing();
+                
+                // Switch to treemap visualization
+                showVisualization('treemap');
+                
+                // Expand the stats section if it's collapsed
+                const statsHeader = document.querySelector('.card-header:nth-child(2)');
+                if (statsHeader && statsHeader.classList.contains('collapsed')) {
+                    toggleSection(statsHeader);
+                }
+            } else {
+                icon.textContent = 'play_circle';
+                text.textContent = 'Start Tailing';
+                status.classList.remove('active');
+                stopTailing();
+            }
+        }
+
+        function startTailing() {
+            lastLogTimestamp = logs.length > 0 ? logs[logs.length - 1].timestamp : null;
+            tailingInterval = setInterval(checkNewLogs, 1000);
+        }
+
+        function stopTailing() {
+            if (tailingInterval) {
+                clearInterval(tailingInterval);
+                tailingInterval = null;
+            }
+        }
+
+        async function checkNewLogs() {
+            try {
+                // Get the latest log data
+                const logInput = document.getElementById('log-file');
+                let text;
+                
+                if (logInput.files.length > 0) {
+                    text = await logInput.files[0].text();
+                    logData = text;
+                    localStorage.setItem('forge-tree-log-data', text);
+                } else if (logData) {
+                    text = logData;
+                } else if (cachedLogData) {
+                    text = cachedLogData;
+                } else {
+                    throw new Error('No log data available');
+                }
+
+                const lines = text.split('\n').filter(line => line.trim());
+                
+                // Try parsing as JSON Lines first
+                const jsonLogs = lines.map(line => {
+                    try {
+                        const cleanLine = line.replace(/,\s*$/, '');
+                        const parsed = JSON.parse(cleanLine);
+                        
+                        // If metadata exists and it's a string, try to parse it
+                        if (parsed.metadata && typeof parsed.metadata === 'string') {
+                            try {
+                                parsed.metadata = JSON.parse(parsed.metadata);
+                            } catch {
+                                // Keep as string if parsing fails
+                            }
+                        }
+                        
+                        return parsed;
+                    } catch {
+                        // Try parsing text format
+                        const match = line.match(/\[(.*?)\]\s+(\w+):\s+(.*)/);
+                        if (match) {
+                            return {
+                                timestamp: match[1],
+                                level: match[2],
+                                action: 'log',
+                                message: match[3]
+                            };
+                        }
+                        return null;
+                    }
+                }).filter(log => log);
+
+                let newLogs;
+                if (jsonLogs.length > 0) {
+                    newLogs = jsonLogs;
+                } else {
+                    // Try parsing as a single JSON object
+                    try {
+                        const parsed = JSON.parse(text);
+                        newLogs = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If all parsing fails, treat as plain text
+                        newLogs = lines.map(line => ({
+                            timestamp: new Date().toISOString(),
+                            level: 'info',
+                            action: 'log',
+                            message: line
+                        }));
+                    }
+                }
+                
+                if (lastLogTimestamp) {
+                    const newEntries = newLogs.filter(log => 
+                        new Date(log.timestamp) > new Date(lastLogTimestamp)
+                    );
+                    
+                    if (newEntries.length > 0) {
+                        logs.push(...newEntries);
+                        lastLogTimestamp = newEntries[newEntries.length - 1].timestamp;
+                        
+                        // Update UI
+                        const logContainer = document.getElementById('log-container');
+                        newEntries.forEach(log => {
+                            logContainer.insertAdjacentHTML('beforeend', createLogEntry(log));
+                        });
+                        
+                        // Update visualizations
+                        updateVisualization(currentVisualization);
+                    }
+                } else {
+                    // If no lastLogTimestamp, initialize with the latest log
+                    if (newLogs.length > 0) {
+                        lastLogTimestamp = newLogs[newLogs.length - 1].timestamp;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for new logs:', error);
+                stopTailing();
+            }
+        }
+
+        // Initial load
+        async function loadData() {
+            try {
+                // Try to load from cache first
+                if (logData || cachedLogData) {
+                    await processLogData(logData || cachedLogData);
+                }
+                if (statsData || cachedStatsData) {
+                    await processStatsData(statsData || cachedStatsData);
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'log-entry';
+                errorMessage.style.color = 'var(--error-color)';
+                errorMessage.textContent = `Failed to load data: ${error.message}`;
+                document.getElementById('log-container').appendChild(errorMessage);
+            }
+        }
+
+        // Refresh functions
+        async function refreshLogs() {
+            await loadData();
+            filterLogs(document.querySelector('.search-box').value);
+        }
+
+        async function refreshStats() {
+            await loadData();
+        }
+
+        // Event listeners
+        document.addEventListener('scroll', () => {
+            // Update fixed elements
+        }, { passive: true });
+
+        document.addEventListener('touchstart', () => {
+            // Handle touch events
+        }, { passive: true });
+
+        document.addEventListener('touchmove', () => {
+            // Handle touch events
+        }, { passive: true });
+
+        // Toggle functions
+        function toggleLogEntry(entry, event) {
+            if (event) {
+                event.stopPropagation(); // Prevent event from bubbling up to card
+            }
+            entry.classList.toggle('collapsed');
+        }
+
+        function toggleSection(header, event) {
+            if (event) {
+                // Don't toggle if clicking on a button
+                if (event.target.closest('.filter-button')) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            header.classList.toggle('collapsed');
+            const content = header.nextElementSibling;
+            if (content) {
+                content.classList.toggle('collapsed');
+                
+                // If this is a visualization container, trigger a resize event
+                // to make charts responsive after expanding
+                if (content.querySelector('.visualization')) {
+                    window.dispatchEvent(new Event('resize'));
+                }
+            }
+        }
+
+        // Add click handlers to section headers
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize all sections as expanded
+            document.querySelectorAll('.card-header').forEach(header => {
+                header.classList.remove('collapsed');
+                const content = header.nextElementSibling;
+                if (content) {
+                    content.classList.remove('collapsed');
+                }
+                
+                // Add click handler
+                header.addEventListener('click', (event) => toggleSection(header, event));
+            });
+            
+            // Initialize all log entries as collapsed
+            document.querySelectorAll('.log-entry').forEach(entry => {
+                entry.classList.add('collapsed');
+                entry.addEventListener('click', (event) => toggleLogEntry(entry, event));
+            });
+        });
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

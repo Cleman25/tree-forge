@@ -41,7 +41,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/index.js',0o755)\"",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/index.js',0o755)\" && node -e \"const fs=require('fs');const path=require('path');const templatesDir=path.join('src','templates');const distTemplatesDir=path.join('dist','templates');fs.mkdirSync(distTemplatesDir,{recursive:true});fs.readdirSync(templatesDir).forEach(f=>fs.copyFileSync(path.join(templatesDir,f),path.join(distTemplatesDir,f)));\"",
     "dev": "tsc -w -p tsconfig.json",
     "prepublishOnly": "npm run build && npm test",
     "release:tag": "node -e \"const v=require('./package.json').version;console.log('v'+v)\"",
@@ -59,17 +59,21 @@
     "ci:test": "npm run test -- --coverage --reporter=default",
     "ci:build": "npm run build",
     "ci:clean": "rm -rf node_modules dist coverage .nyc_output",
-    "ci:audit": "npm audit --production"
+    "ci:audit": "npm audit --production",
+    "local": "npm ci && npm run build && npm link && forge-tree --help"
   },
   "dependencies": {
     "chalk": "^5.3.0",
     "execa": "^9.4.0",
+    "open": "^10.2.0",
     "prompts": "^2.4.2",
+    "serve-handler": "^6.1.6",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.10",
     "@types/prompts": "^2.4.9",
+    "@types/serve-handler": "^6.1.4",
     "@types/yargs": "^17.0.33",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
